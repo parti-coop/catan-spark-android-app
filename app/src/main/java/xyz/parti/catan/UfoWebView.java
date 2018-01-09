@@ -21,6 +21,9 @@ import android.webkit.WebViewClient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 public class UfoWebView
 {
@@ -147,6 +150,12 @@ public class UfoWebView
 				return true;
 			}
 */
+
+			if (url.startsWith("http:") || url.startsWith("https:"))
+			{
+				view.loadUrl(url, UfoWebView.extraHttpHeaders());
+				return true;
+			}
 
 			return false;
 		}
@@ -373,5 +382,13 @@ Util.d("JS: %s", js);
 			return "";
 
 		return src.replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
+	}
+
+	public static Map<String, String> extraHttpHeaders() {
+		Map<String, String> headers = new HashMap<>();
+		headers.put("catan-agent", "catan-spark-android");
+		headers.put("catan-version", "1.0.0");
+
+		return headers;
 	}
 }
