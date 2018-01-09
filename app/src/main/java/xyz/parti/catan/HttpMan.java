@@ -37,7 +37,7 @@ import javax.net.ssl.X509TrustManager;
 // Simple HTTP Manager (with Background thread worker)
 public class HttpMan implements Runnable
 {
-	private static final boolean ENABLE_FAKE_SSL = false;
+	private static final boolean ENABLE_FAKE_SSL = BuildConfig.IS_DEBUG;
 
 	public static final int RESULT_IGNORE = 0;
 	public static final int RESULT_TEXT = 1;
