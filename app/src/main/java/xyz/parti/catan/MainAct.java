@@ -97,7 +97,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 
 		// 앱이 최초 로드할 웹서버의 주소입니다. 필요시 변경 가능합니다. 웹서버에도 변경은 필수!
-		m_webView.loadRemoteUrl(ApiMan.getBaseUrl() + "_AppStart");
+		m_webView.loadRemoteUrl(ApiMan.getBaseUrl() + "mobile_app/start");
 
 		// 1초간 스플래시 화면을 보여줍니다.
 		// iOS는 Launch스크린이 필수라서 대응하며 만든 기능입니다. 이 기능이 필요 없으면 연락주세요.
