@@ -22,12 +22,22 @@ android {
         }
     }
 
+    Properties properties = new Properties()
+    properties.load(project.rootProject.file('local.properties').newDataInputStream())
+    def debug_api_base_url = properties.getProperty('debug.api.base.url')
+
     buildTypes {
+        def var_api_base_url = "API_BASE_URL"
+        def var_is_debug = "IS_DEBUG"
+
         debug {
-            buildConfigField "boolean", "IS_DEBUG", "true"
+            buildConfigField "boolean", var_is_debug, "true"
+            buildConfigField "String", var_api_base_url, ( '"' + debug_api_base_url + '"' ?: "\"http://parti.test/\"" )
         }
         release {
-            buildConfigField "boolean", "IS_DEBUG", "false"
+            buildConfigField "boolean", var_is_debug, "false"
+            buildConfigField "String", var_api_base_url, "\"https://parti.xyz\""
+
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release

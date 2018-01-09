@@ -12,7 +12,7 @@ public class ApiMan implements HttpMan.OnHttpListener
 
 	public static void setDevMode()
 	{
-		API_BASEURL = "http://192.168.0.5:8500/";
+		API_BASEURL = BuildConfig.API_BASE_URL;
 		Util.toastShort(CatanApp.getApp(), "개발자모드");
 	}
 
