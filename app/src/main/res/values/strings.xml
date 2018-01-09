@@ -1,0 +1,10 @@
+<resources>
+	<string name="app_name">빠띠</string>
+
+	<string name="default_notification_channel_id" translatable="false">fcm_default_channel</string>
+	<string name="default_notification_channel_name" translatable="true">CATAN</string>
+
+	<string name="error_no_internet">인터넷에 연결하지 못하였습니다.</string>
+	<string name="error_server_noconn">서버에 연결하지 못하였습니다.</string>
+	<string name="error_server_fail">서버 오류 또는 요청 실패입니다.</string>
+</resources>

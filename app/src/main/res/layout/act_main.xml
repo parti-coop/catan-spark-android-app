@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	>
+	<WebView
+		android:id="@+id/web"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		/>
+	<FrameLayout
+		android:id="@+id/waitScr"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:background="#66000000"
+		android:visibility="visible"
+		android:clickable="true"
+		android:focusable="true"
+		>
+		<ProgressBar
+			android:id="@+id/prgsBar"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center"
+			android:indeterminateOnly="true"
+			android:keepScreenOn="true"
+			/>
+	</FrameLayout>
+
+	<FrameLayout
+		android:id="@+id/splash"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:background="@drawable/splash_bg">
+		<ImageView
+			android:id="@+id/logo"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:src="@mipmap/ic_launcher"
+			android:scaleType="fitCenter"
+			android:layout_gravity="center_horizontal|center_vertical"
+			android:layout_marginLeft="30dp"
+			android:layout_marginRight="30dp"
+			/>
+	</FrameLayout>
+
+</FrameLayout>
