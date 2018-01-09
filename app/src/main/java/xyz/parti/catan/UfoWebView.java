@@ -6,11 +6,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Build;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -149,13 +151,16 @@ public class UfoWebView
 			return false;
 		}
 
-/*
 		@Override
 		public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error)
 		{
-			handler.proceed();
+			if(BuildConfig.IS_DEBUG) {
+				handler.proceed();
+			} else {
+				super.onReceivedSslError(view, handler, error);
+			}
 		}
-*/
+
 	};
 
 	public UfoWebView(Activity act, View webView, Listener lsnr)
