@@ -36,6 +36,7 @@ public class UfoWebView
 	private Activity m_activity;
 	private WebView m_webView;
 	private Listener m_listener;
+	private boolean m_isAutomaticShowHideWait;
 
 	private WebChromeClient m_chromeClient = new WebChromeClient()
 	{
@@ -117,6 +118,11 @@ public class UfoWebView
 		{
 			if (m_listener != null)
 				m_listener.onPageLoadFinished(url);
+
+			if (m_isAutomaticShowHideWait)
+			{
+				hideWait();
+			}
 		}
 
 		public boolean shouldOverrideUrlLoading(WebView view, final String url)
@@ -153,6 +159,11 @@ public class UfoWebView
 
 			if (url.startsWith("http:") || url.startsWith("https:"))
 			{
+				if (m_isAutomaticShowHideWait)
+				{
+					showWait();
+				}
+
 				view.loadUrl(url, UfoWebView.extraHttpHeaders());
 				return true;
 			}
@@ -213,17 +224,26 @@ public class UfoWebView
 
 	public void goBack()
 	{
+		if (m_isAutomaticShowHideWait)
+			showWait();
+
 		m_webView.goBack();
 	}
 
 	public void loadRemoteUrl(String url)
 	{
+		if (m_isAutomaticShowHideWait)
+			showWait();
+
 		Util.d("loadRemoteUrl: %s", url);
 		m_webView.loadUrl(url);
 	}
 
 	public void loadLocalHtml(String htmlName)
 	{
+		if (m_isAutomaticShowHideWait)
+			showWait();
+
 		Util.d("loadLocalHtml: %s", htmlName);
 		String url = "file:///android_asset/" + htmlName + ".html";
 		m_webView.loadUrl(url);
@@ -267,7 +287,6 @@ public class UfoWebView
 		}
 	}
 
-	//@TargetApi(Build.VERSION_CODES.KITKAT)
 	public void evalJs(String format, Object ... args)
 	{
 		String js = args.length == 0 ? format : String.format(format, args);
@@ -317,7 +336,6 @@ Util.d("JS: %s", js);
 		{
 			public void run()
 			{
-				Util.d("showWaitMark");
 				MainAct.getInstance().showWaitMark(true);
 			}
 		});
@@ -330,10 +348,15 @@ Util.d("JS: %s", js);
 		{
 			public void run()
 			{
-				Util.d("hideWaitMark");
 				MainAct.getInstance().showWaitMark(false);
 			}
 		});
+	}
+
+	@JavascriptInterface
+	public void setAutoWait(boolean isAuto)
+	{
+		m_isAutomaticShowHideWait = isAuto;
 	}
 
 	@JavascriptInterface

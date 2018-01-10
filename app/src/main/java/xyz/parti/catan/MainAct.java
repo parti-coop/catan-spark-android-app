@@ -36,6 +36,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 	private int m_nPageFinishCount = 0;
 	private boolean m_isInitialWaitDone = false;
+	private long m_timeToHideWait;
 
 	private String m_urlToGoDelayed;
 	private Bundle m_delayedBundle;
@@ -184,7 +185,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		else
 		{
 			m_urlToGoDelayed = null;
-			showWaitMark(true);
 
 			if (url.startsWith("/"))
 			{
@@ -218,8 +218,12 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		return (m_vwWaitScreen.getVisibility() == View.VISIBLE);
 	}
 
+	private static final long AUTO_HIDE_TIMEOUT_MILLIS = 5000;
+
 	public void showWaitMark(boolean show)
 	{
+		Util.d("showWaitMark(%b)", show);
+
 		if (show != isShowWait())
 		{
 			int vis = show ? View.VISIBLE : View.GONE;
@@ -227,10 +231,32 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			m_prgsView.setVisibility(vis);
 		}
 
-		if (show == false && m_urlToGoDelayed != null)
+		if (show)
+		{
+			// 로딩화면(스크린 터치를 못하게 함)을 자동으로 hide시키는 타임아웃을 설정합니다.
+			// HTML 페이지 내의 어떤 요소(예:이미지)가 로딩이 실패할 경우 onPageLoadFinished 가
+			// 호출되지 않을 수 있는데, 그런 경우 최소 Back 버튼이나 다른 링크라도 누를 수 있도록 하기 위해서 입니다.
+			m_timeToHideWait = System.currentTimeMillis() + AUTO_HIDE_TIMEOUT_MILLIS - 300;
+			m_prgsView.postDelayed(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					if (m_timeToHideWait < System.currentTimeMillis())
+					{
+						showWaitMark(false);
+					}
+				}
+			}, AUTO_HIDE_TIMEOUT_MILLIS);
+		}
+		else if (m_urlToGoDelayed != null)
 		{
 			m_webView.loadRemoteUrl(m_urlToGoDelayed);
 			m_urlToGoDelayed = null;
+		}
+		else if (m_delayedBundle != null)
+		{
+			alertPushDialog(m_delayedBundle);
 		}
 	}
 
@@ -239,24 +265,19 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	{
 		Util.d("onPageLoadFinished: %s", url);
 
-		if (isShowWait() && m_isInitialWaitDone == false)
+		if (m_isInitialWaitDone == false && isShowWait())
 		{
-			// 최초 AppStart 페이지 방문 후 다음 페이지 (보통 초기페이지) 로드 완료 시,
-			// 앱 구동때부터 돌던 WaitScreen 을 감춘다. (실제로 감추는 코드는 저 아래 블럭에)
+			// 최초 mobile_app/start 페이지 방문 후 다음(두번째) 페이지 (보통 초기페이지) 로드 완료 시,
+			// 앱 구동때부터 보이던 WaitScreen 을 감춘다.
 			if (++m_nPageFinishCount >= 2)
 			{
 				Util.d("InitialWaitDone, clearNavHistory");
 				m_isInitialWaitDone = true;
 				m_webView.clearNavHistory();
-			}
-		}
+				showWaitMark(false);
 
-		if (m_isInitialWaitDone)
-		{
-			showWaitMark(false);
-			if (m_delayedBundle != null)
-			{
-				alertPushDialog(m_delayedBundle);
+				// 이후 링크 클릭시 자동으로 로딩화면이 show/hide 될 수 있도록 함
+				m_webView.setAutoWait(true);
 			}
 		}
 	}
@@ -268,7 +289,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 		if ("noAuth".equals(action))
 		{
-			// 웹뷰가 AppStart 페이지에서 로그인된 상태가 아닐 경우 여기로 옵니다.
+			// 웹뷰가 mobile_app/start 페이지에서 로그인된 상태가 아닐 경우 여기로 옵니다.
 			// 앱에 저장된 인증정보가 있으면 웹뷰의 세션 복구를 시도합니다.
 			SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(CatanApp.getApp());
 			String authkey = sp.getString(KEY_AUTHKEY, null);
@@ -295,7 +316,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			if (pushToken == null)
 				pushToken = "";
 
-			String appId = "xyz.parti.catan";
+			String appId = getPackageName();
 			CatanApp.getApiManager().requestRegisterToken(this, authkey, pushToken, appId);
 
 			// (HTML쪽에서 로그인ID도 보내주면 활용할 수 있음)
@@ -337,8 +358,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	@Override
 	public boolean onApiError(int jobId, String errMsg)
 	{
-		showWaitMark(false);
-
 		switch (jobId)
 		{
 		case ApiMan.JOBID_REGISTER_TOKEN:
@@ -350,6 +369,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			return true;
 		}
 
+		showWaitMark(false);
 		// false 리턴하면 alert(errMsg)를 띄우게 된다.
 		return false;
 	}
@@ -357,8 +377,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	@Override
 	public void onApiResult(int jobId, Object _param)
 	{
-		showWaitMark(false);
-
 		switch (jobId)
 		{
 		case ApiMan.JOBID_REGISTER_TOKEN:

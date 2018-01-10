@@ -40,6 +40,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 			Activity act = CatanApp.getCurActivity();
 			if (act != null && act == MainAct.getInstance())
 			{
+				// 앱이 실행중이다. 바로 푸시 내용을 보여준다.
 				final Bundle bun = new Bundle();
 				bun.putString(MainAct.PUSHARG_TITLE, remoteMessage.getNotification().getTitle());
 				bun.putString(MainAct.PUSHARG_MESSAGE, remoteMessage.getNotification().getBody());
@@ -52,13 +53,14 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 						MainAct.getInstance().alertPushDialog(bun);
 					}
 				});
+
+				// sendNotification를 호출하면 노티바에도 등록함 (위에서 alert 보여주도록 했기 때문에 같은 것을 두번 보게 됨)
+				//sendNotification(remoteMessage);
 			}
 			else
 			{
 				sendNotification(remoteMessage);
 			}
-
-			sendNotification(remoteMessage);
 		}
 	}
 
@@ -74,7 +76,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
 
 		//Bitmap bmpLargeIcon = BitmapFactory.decodeResource(getApplicationContext().getResources(), R.mipmap.ic_launcher);
-		//Util.d("bmp=%s, ctx=%s, res=%s", bmpLargeIcon, getApplicationContext(), getApplicationContext().getResources());
 
 		String channelId = getString(R.string.default_notification_channel_id);
 		Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
@@ -85,7 +86,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 				.setTicker(noti.getTitle())
 				.setContentTitle(noti.getTitle())
 				.setContentText(noti.getBody())
-				.setColor(0x26ccf9)
+				.setColor(0x966fd6)     // 아이콘 대표 컬러
 				.setAutoCancel(true)
 				.setDefaults(Notification.DEFAULT_ALL)
 				.setSound(defaultSoundUri)
