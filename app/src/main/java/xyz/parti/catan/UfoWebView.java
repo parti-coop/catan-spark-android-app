@@ -91,24 +91,24 @@ public class UfoWebView
 
 		@Override
 		public boolean onCreateWindow(WebView view, boolean dialog, boolean userGesture, android.os.Message resultMsg) {
-			Context context = view.getContext();
-			WebView targetWebView = new WebView(context); // pass a context
-			targetWebView.setWebViewClient(new WebViewClient() {
+			final Context context = view.getContext();
+			final WebView dummyWebView = new WebView(context); // pass a context
+			dummyWebView.setWebViewClient(new WebViewClient() {
 				@Override
 				public void onPageStarted(WebView view, String url,
 										  Bitmap favicon) {
-					handleLinksOnCreateWindow(view, url); // you can get your target url here
-					super.onPageStarted(view, url, favicon);
+					handleLinksOnCreateWindow(context, url); // you can get your target url here
+					dummyWebView.stopLoading();
+					dummyWebView.destroy();
 				}
 			});
 			WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
-			transport.setWebView(targetWebView);
+			transport.setWebView(dummyWebView);
 			resultMsg.sendToTarget();
 			return true;
 		}
 
-		private void handleLinksOnCreateWindow(WebView view, String url) {
-			Context context = view.getContext();
+		private void handleLinksOnCreateWindow(Context context, String url) {
 			Util.d("handleLinksOnCreateWindow: %s", url);
 
 			if (Pattern.compile(BuildConfig.API_BASE_URL_REGX).matcher(url).lookingAt()) {
