@@ -23,6 +23,7 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 
 public class UfoWebView
@@ -93,10 +94,18 @@ public class UfoWebView
 			WebView.HitTestResult result = view.getHitTestResult();
 			String data = result.getExtra();
 			Util.d("WebView.onCreateWindow: %s", data);
-			Context context = view.getContext();
-			Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(data));
-			context.startActivity(browserIntent);
-			return false;
+
+			if (Pattern.compile(Pattern.quote(BuildConfig.API_BASE_URL)).matcher(data).lookingAt()) {
+				Util.d("WebView.onCreateWindow filter: %s", Pattern.quote(BuildConfig.API_BASE_URL));
+
+				loadRemoteUrl(data);
+				return false;
+			} else {
+				Context context = view.getContext();
+				Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(data));
+				context.startActivity(browserIntent);
+				return false;
+			}
 		}
 	};
 
