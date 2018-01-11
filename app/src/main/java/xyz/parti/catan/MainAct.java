@@ -109,7 +109,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			{
 				m_vwSplashScreen.setVisibility(View.GONE);
 			}
-		}, 1000);
+		}, 2000);
 	}
 
 	private boolean isPushBundle(Bundle bun)

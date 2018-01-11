@@ -33,17 +33,17 @@
 		android:id="@+id/splash"
 		android:layout_width="match_parent"
 		android:layout_height="match_parent"
-		android:background="@drawable/splash_bg">
+		android:background="@color/colorIconBg">
+
 		<ImageView
 			android:id="@+id/logo"
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"
-			android:src="@mipmap/ic_launcher"
-			android:scaleType="fitCenter"
 			android:layout_gravity="center_horizontal|center_vertical"
-			android:layout_marginLeft="30dp"
-			android:layout_marginRight="30dp"
-			/>
+			android:layout_marginLeft="140dp"
+			android:layout_marginRight="140dp"
+			android:scaleType="fitCenter"
+			android:src="@drawable/img_toolbar_logo" />
 	</FrameLayout>
 
 </FrameLayout>
