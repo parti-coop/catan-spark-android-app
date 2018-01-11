@@ -111,9 +111,7 @@ public class UfoWebView
 			Context context = view.getContext();
 			Util.d("handleLinksOnCreateWindow: %s", url);
 
-			if (Pattern.compile(Pattern.quote(BuildConfig.API_BASE_URL)).matcher(url).lookingAt()) {
-				Util.d("WebView.onCreateWindow filter: %s", Pattern.quote(BuildConfig.API_BASE_URL));
-
+			if (Pattern.compile(BuildConfig.API_BASE_URL_REGX).matcher(url).lookingAt()) {
 				loadRemoteUrl(url);
 			} else {
 				Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
