@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -89,22 +90,34 @@ public class UfoWebView
 		}
 
 		@Override
-		public boolean onCreateWindow(WebView view, boolean dialog, boolean userGesture, android.os.Message resultMsg)
-		{
-			WebView.HitTestResult result = view.getHitTestResult();
-			String data = result.getExtra();
-			Util.d("WebView.onCreateWindow: %s", data);
+		public boolean onCreateWindow(WebView view, boolean dialog, boolean userGesture, android.os.Message resultMsg) {
+			Context context = view.getContext();
+			WebView targetWebView = new WebView(context); // pass a context
+			targetWebView.setWebViewClient(new WebViewClient() {
+				@Override
+				public void onPageStarted(WebView view, String url,
+										  Bitmap favicon) {
+					handleLinksOnCreateWindow(view, url); // you can get your target url here
+					super.onPageStarted(view, url, favicon);
+				}
+			});
+			WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+			transport.setWebView(targetWebView);
+			resultMsg.sendToTarget();
+			return true;
+		}
 
-			if (Pattern.compile(Pattern.quote(BuildConfig.API_BASE_URL)).matcher(data).lookingAt()) {
+		private void handleLinksOnCreateWindow(WebView view, String url) {
+			Context context = view.getContext();
+			Util.d("handleLinksOnCreateWindow: %s", url);
+
+			if (Pattern.compile(Pattern.quote(BuildConfig.API_BASE_URL)).matcher(url).lookingAt()) {
 				Util.d("WebView.onCreateWindow filter: %s", Pattern.quote(BuildConfig.API_BASE_URL));
 
-				loadRemoteUrl(data);
-				return false;
+				loadRemoteUrl(url);
 			} else {
-				Context context = view.getContext();
-				Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(data));
+				Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
 				context.startActivity(browserIntent);
-				return false;
 			}
 		}
 	};
@@ -201,6 +214,7 @@ public class UfoWebView
 		WebSettings webSettings = m_webView.getSettings();
 		webSettings.setSaveFormData(false);
 		webSettings.setJavaScriptEnabled(true);
+		webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
 		webSettings.setSupportMultipleWindows(true);
 
 		webSettings.setDefaultFontSize(16);
