@@ -48,3 +48,5 @@ app/google-services.json
 
 # Local configuration file (sdk path, etc)
 local.properties
+
+app/release/output.json
