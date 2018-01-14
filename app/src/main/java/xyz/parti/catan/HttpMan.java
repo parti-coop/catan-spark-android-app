@@ -44,7 +44,7 @@ public class HttpMan implements Runnable
 	public static final int RESULT_JSON = 2;
 	public static final int RESULT_JSON_ARRAY = 3;
 	public static final int RESULT_BINARY = 4;
-	public static final int RESULT_SAVE_TO_FILE = 5;    // Object result should have the pathname
+	public static final int RESULT_FILE_WITH_PROGRESS = 5;
 	public static final int RESULT_SIGNAL = 6;
 
 	public static final int REQUESTMETHOD_GET = 0;
@@ -65,6 +65,13 @@ public class HttpMan implements Runnable
 	{
 		void onHttpFail(int jobId, QuerySpec spec, int failHttpStatus);
 		void onHttpSuccess(int jobId, QuerySpec spec, Object result);
+		void onHttpFileDownloading(int jobId, QuerySpec spec, long current, long total);
+	}
+
+	public static class FileDownloadInfo
+	{
+		public long length;
+		public String filePath;
 	}
 
 	public static class QuerySpec
@@ -298,7 +305,8 @@ public class HttpMan implements Runnable
 		job.listener = lsnr;
 		job.jobId = jobId;
 		job.spec = spec;
-		job.spec.resultType = RESULT_SAVE_TO_FILE;
+
+		job.spec.resultType = HttpMan.RESULT_FILE_WITH_PROGRESS;
 		job.result = pathToSaveFile;
 
 		addJobToQueue(job);
@@ -540,10 +548,13 @@ public class HttpMan implements Runnable
 					continue;
 				}
 
+				int fileDownCurrent = 0;
+				int fileDownTotal = conn.getContentLength();
+
 				InputStream inStrm = conn.getInputStream();
 				OutputStream outStrm;
 				ByteArrayOutputStream ba;
-				if (job.spec.resultType == RESULT_SAVE_TO_FILE)
+				if (job.spec.resultType == RESULT_FILE_WITH_PROGRESS)
 				{
 					FileOutputStream fos = new FileOutputStream((String) job.result);
 					outStrm = fos;
@@ -555,7 +566,7 @@ public class HttpMan implements Runnable
 					outStrm = ba;
 				}
 
-				byte[] buff = new byte[2048];
+				byte[] buff = new byte[1024 * 8];
 
 				while (true)
 				{
@@ -564,6 +575,13 @@ public class HttpMan implements Runnable
 						break;
 
 					outStrm.write(buff, 0, read);
+
+					if (ba == null)
+					{
+						// file download
+						fileDownCurrent += read;
+						job.listener.onHttpFileDownloading(job.jobId, job.spec, fileDownCurrent, fileDownTotal);
+					}
 				}
 				outStrm.close();
 
@@ -593,9 +611,18 @@ public class HttpMan implements Runnable
 				case RESULT_BINARY:
 					job.result = ba.toByteArray();
 					break;
-				case RESULT_SAVE_TO_FILE:
-					Util.d("HTTP stream saved to file: " + job.result);
+
+				case RESULT_FILE_WITH_PROGRESS:
+					{
+						FileDownloadInfo info = new FileDownloadInfo();
+						info.length = fileDownCurrent;
+						info.filePath = (String) job.result;
+						job.result = info;
+
+						Util.d("HTTP stream saved to file: %s (%d)", info.filePath, info.length);
+					}
 					break;
+
 				default:
 					Util.e("Unknown resultType: %d", job.spec.resultType);
 					continue;
@@ -648,7 +675,7 @@ public class HttpMan implements Runnable
 		}
 		else
 		{
-			if (job.spec.resultType == RESULT_SAVE_TO_FILE)
+			if (job.spec.resultType == RESULT_FILE_WITH_PROGRESS)
 			{
 				// delete file if exists
 				try

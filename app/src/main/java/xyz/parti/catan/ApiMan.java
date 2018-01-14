@@ -1,5 +1,8 @@
 package xyz.parti.catan;
 
+import android.os.Handler;
+import android.os.Message;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -29,15 +32,19 @@ public class ApiMan implements HttpMan.OnHttpListener
 
 	public static final int JOBID_REGISTER_TOKEN =1;
 	public static final int JOBID_DELETE_TOKEN =2;
+	public static final int JOBID_DOWNLOAD_FILE =3;
+
+	public static final int WHAT_FILE_PROGRESS_UPDATE =1;
 
 	private ConcurrentHashMap<Listener, AtomicLong> m_activeListeners;
+	private Handler m_fileProgressHandler;
 
 	public ApiMan()
 	{
 		m_activeListeners = new ConcurrentHashMap<Listener, AtomicLong>();
 	}
 
-	private HttpMan.QuerySpec getEmptySpec(String uri)
+	private static HttpMan.QuerySpec getEmptySpec(String uri)
 	{
 		HttpMan.QuerySpec spec = new HttpMan.QuerySpec();
 		spec.setUrl(API_BASEURL + uri);
@@ -87,6 +94,27 @@ public class ApiMan implements HttpMan.OnHttpListener
 
 		Util.d("requestDeleteToken(%s,%s)", authkey, pushToken);
 		sendRequest(lsnr, JOBID_DELETE_TOKEN, spec);
+	}
+
+	public void requestFileDownload(Listener lsnr, String authkey, int postId, int fileId, String pathToSave, Handler prgsHandler)
+	{
+		String uri = String.format("api/v1/posts/%d/download_file/%d", postId, fileId);
+		HttpMan.QuerySpec spec = getEmptySpec(uri);
+		spec.requestMethod = HttpMan.REQUESTMETHOD_GET;
+		spec.addHeader("Authorization", "Bearer " + authkey);
+
+		Util.d("requestFileDownload(%s,%s)", authkey, uri);
+
+		if (lsnr != null)
+		{
+			m_activeListeners.putIfAbsent(lsnr, new AtomicLong(0));
+			m_activeListeners.get(lsnr).incrementAndGet();
+		}
+
+		m_fileProgressHandler = prgsHandler;
+
+		spec.userObj = lsnr;
+		CatanApp.getApp().getHttpManager().requestDownload(this, JOBID_DOWNLOAD_FILE, spec, pathToSave);
 	}
 
 	private String parseDeleteResult(JSONObject json) throws JSONException
@@ -147,6 +175,16 @@ public class ApiMan implements HttpMan.OnHttpListener
 	}
 
 	@Override
+	public void onHttpFileDownloading(int jobId, HttpMan.QuerySpec spec, long current, long total)
+	{
+		Message msg = m_fileProgressHandler.obtainMessage();
+		msg.what = WHAT_FILE_PROGRESS_UPDATE;
+		msg.arg1 = (int)current;
+		msg.arg2 = (int)total;
+		m_fileProgressHandler.sendMessage(msg);
+	}
+
+	@Override
 	public void onHttpSuccess(int jobId, HttpMan.QuerySpec spec, Object result)
 	{
 		Util.d("ApiMan.HttpSuccess: job=%d, result=%s", jobId, result);
@@ -168,6 +206,7 @@ public class ApiMan implements HttpMan.OnHttpListener
 		{
 			JSONObject bodyJson = null;
 			String bodyText = null;
+			HttpMan.FileDownloadInfo downInfo = null;
 
 			if (spec.resultType == HttpMan.RESULT_JSON)
 			{
@@ -176,6 +215,10 @@ public class ApiMan implements HttpMan.OnHttpListener
 			else if (spec.resultType == HttpMan.RESULT_TEXT)
 			{
 				bodyText = (String) result;
+			}
+			else if (spec.resultType == HttpMan.RESULT_FILE_WITH_PROGRESS)
+			{
+				downInfo = (HttpMan.FileDownloadInfo) result;
 			}
 			else
 			{
@@ -195,6 +238,10 @@ public class ApiMan implements HttpMan.OnHttpListener
 			case JOBID_DELETE_TOKEN:
 				//param = parseDeleteResult(bodyJson);
 				param = bodyText;
+				break;
+
+			case JOBID_DOWNLOAD_FILE:
+				param = downInfo;
 				break;
 
 			default:

@@ -2,12 +2,18 @@ package xyz.parti.catan;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.ProgressDialog;
+import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.preference.PreferenceManager;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -18,6 +24,9 @@ import com.google.firebase.iid.FirebaseInstanceId;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.io.File;
+import java.net.URLConnection;
 
 
 public class MainAct extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
@@ -40,6 +49,8 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 	private String m_urlToGoDelayed;
 	private Bundle m_delayedBundle;
+
+	private ProgressDialog m_downloadPrgsDlg;
 
 	private static MainAct s_this;
 	public static MainAct getInstance()
@@ -282,6 +293,12 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 	}
 
+	private String getAuthKey()
+	{
+		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
+		return sp.getString(KEY_AUTHKEY, null);
+	}
+
 	@Override
 	public void onPostAction(String action, JSONObject json) throws JSONException
 	{
@@ -291,8 +308,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		{
 			// 웹뷰가 mobile_app/start 페이지에서 로그인된 상태가 아닐 경우 여기로 옵니다.
 			// 앱에 저장된 인증정보가 있으면 웹뷰의 세션 복구를 시도합니다.
-			SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(CatanApp.getApp());
-			String authkey = sp.getString(KEY_AUTHKEY, null);
+			String authkey = getAuthKey();
 			if (authkey == null)
 			{
 				// 서버에서 빈 authkey 를 받으면 앱이 인증정보가 없다는 것으로 간주하도록 작성해야 합니다.
@@ -348,6 +364,66 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				}
 			}
 		}
+		else if ("download".equals(action))
+		{
+			String authkey = getAuthKey();
+			if (authkey == null)
+			{
+				Util.showSimpleAlert(this, null, "로그인 정보가 올바르지 않습니다.");
+				return;
+			}
+
+			int postId, fileId;
+			String fileName;
+
+			try
+			{
+				postId = json.getInt("post");
+				fileId = json.getInt("file");
+				fileName = json.getString("name");
+			}
+			catch (Exception ex)
+			{
+				Util.showSimpleAlert(this, null, "다운로드 파라메터가 올바르지 않습니다.");
+				return;
+			}
+
+			String destPath = null;
+			File[] cacheDirs = ContextCompat.getExternalCacheDirs(this);
+			for (File dir : cacheDirs)
+			{
+				if (dir.exists())
+				{
+					// TODO: space check
+					File outFile = new File(dir, fileName);
+					if (outFile.exists())
+					{
+						// delete existing old file
+						outFile.delete();
+					}
+
+					destPath = outFile.getAbsolutePath();
+					break;
+				}
+			}
+
+			if (destPath == null)
+			{
+				Util.showSimpleAlert(this, null, "다운로드할 저장소가 없는 것 같습니다.");
+				return;
+			}
+
+			CatanApp.getApiManager().requestFileDownload(this, authkey, postId, fileId, destPath, m_handler);
+
+			m_downloadPrgsDlg = new ProgressDialog(this);
+			m_downloadPrgsDlg.setIndeterminate(false);
+			m_downloadPrgsDlg.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+			m_downloadPrgsDlg.setProgress(0);
+			m_downloadPrgsDlg.setMessage(fileName);
+			m_downloadPrgsDlg.setTitle(R.string.downloading);
+			m_downloadPrgsDlg.setCancelable(false);
+			m_downloadPrgsDlg.show();
+		}
 		else
 		{
 			Util.d("Unhandled post action: %s", action);
@@ -367,6 +443,10 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			// UI 표시 없이 조용히 에러 무시함
 			Util.e("DeleteToken API failed: %s", errMsg);
 			return true;
+
+		case ApiMan.JOBID_DOWNLOAD_FILE:
+			hideDownloadPrgs();
+			break;
 		}
 
 		showWaitMark(false);
@@ -383,8 +463,55 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		case ApiMan.JOBID_DELETE_TOKEN:
 			Util.d("MAIN: ApiResult: %s", _param);
 			break;
-		}
 
+		case ApiMan.JOBID_DOWNLOAD_FILE:
+			HttpMan.FileDownloadInfo param = (HttpMan.FileDownloadInfo) _param;
+			onFileDownloaded(param.filePath);
+			break;
+		}
 	}
 
+	private void hideDownloadPrgs()
+	{
+		if (m_downloadPrgsDlg != null)
+		{
+			m_downloadPrgsDlg.dismiss();
+			m_downloadPrgsDlg = null;
+		}
+	}
+
+	private void onFileDownloaded(String filePath)
+	{
+		hideDownloadPrgs();
+
+		Intent newIntent = new Intent(Intent.ACTION_VIEW);
+		String contentType = URLConnection.guessContentTypeFromName(filePath);
+		newIntent.setDataAndType(Uri.fromFile(new File(filePath)),contentType);
+		newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+		try
+		{
+			startActivity(newIntent);
+		}
+		catch (ActivityNotFoundException ex)
+		{
+			Util.toastShort(this, "이 파일을 처리할 수 있는 앱이 없는 것 같습니다.");
+		}
+	}
+
+	private Handler m_handler = new Handler()
+	{
+		public void handleMessage(Message msg)
+		{
+			if (msg.what == ApiMan.WHAT_FILE_PROGRESS_UPDATE && m_downloadPrgsDlg != null)
+			{
+				if (m_downloadPrgsDlg.getProgress() == 0)
+				{
+					m_downloadPrgsDlg.setMax(msg.arg2);
+				}
+
+				m_downloadPrgsDlg.setProgress(msg.arg1);
+			}
+		}
+	};
 }

@@ -114,8 +114,7 @@ public class UfoWebView
 			if (Pattern.compile(BuildConfig.API_BASE_URL_REGX).matcher(url).lookingAt()) {
 				loadRemoteUrl(url);
 			} else {
-				Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-				context.startActivity(browserIntent);
+				Util.startWebBrowser(context, url);
 			}
 		}
 	};

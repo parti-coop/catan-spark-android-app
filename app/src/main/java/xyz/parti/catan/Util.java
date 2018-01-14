@@ -205,10 +205,10 @@ public class Util
 		return ProgressDialog.show(ctx, "", ctx.getResources().getString(resId), true, true, lsnr);
 	}
 
-	public static void startWebBrowser(Activity act, String url)
+	public static void startWebBrowser(Context ctx, String url)
 	{
 		Intent itt = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-		act.startActivity(itt);
+		ctx.startActivity(itt);
 	}
 
 }
