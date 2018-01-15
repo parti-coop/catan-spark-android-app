@@ -101,7 +101,11 @@ public class ApiMan implements HttpMan.OnHttpListener
 		String uri = String.format("api/v1/posts/%d/download_file/%d", postId, fileId);
 		HttpMan.QuerySpec spec = getEmptySpec(uri);
 		spec.requestMethod = HttpMan.REQUESTMETHOD_GET;
-		spec.addHeader("Authorization", "Bearer " + authkey);
+
+		if (authkey != null)
+		{
+			spec.addHeader("Authorization", "Bearer " + authkey);
+		}
 
 		Util.d("requestFileDownload(%s,%s)", authkey, uri);
 

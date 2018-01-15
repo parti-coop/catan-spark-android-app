@@ -370,13 +370,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 		else if ("download".equals(action))
 		{
-			String authkey = getAuthKey();
-			if (authkey == null)
-			{
-				Util.showSimpleAlert(this, null, "로그인 정보가 올바르지 않습니다.");
-				return;
-			}
-
 			int postId, fileId;
 			String fileName;
 
@@ -417,7 +410,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				return;
 			}
 
-			CatanApp.getApiManager().requestFileDownload(this, authkey, postId, fileId, destPath, m_handler);
+			CatanApp.getApiManager().requestFileDownload(this, getAuthKey(), postId, fileId, destPath, m_handler);
 
 			m_downloadPrgsDlg = new ProgressDialog(this);
 			m_downloadPrgsDlg.setIndeterminate(false);
