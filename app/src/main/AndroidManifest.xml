@@ -59,6 +59,15 @@
 			android:value="588857e4504813c53180f83cb16718446c7ed50f"
 			/>
 
+		<provider
+			android:name="android.support.v4.content.FileProvider"
+			android:authorities="xyz.parti.catan.fileprovider"
+			android:exported="false"
+			android:grantUriPermissions="true">
+			<meta-data
+				android:name="android.support.FILE_PROVIDER_PATHS"
+				android:resource="@xml/filepaths" />
+		</provider>
 	</application>
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="18" />

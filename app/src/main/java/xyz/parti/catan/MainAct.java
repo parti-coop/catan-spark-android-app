@@ -7,6 +7,8 @@ import android.content.ActivityNotFoundException;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -14,6 +16,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -27,6 +30,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.net.URLConnection;
+import java.util.List;
 
 
 public class MainAct extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
@@ -486,9 +490,14 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 		Intent newIntent = new Intent(Intent.ACTION_VIEW);
 		String contentType = URLConnection.guessContentTypeFromName(filePath);
-		newIntent.setDataAndType(Uri.fromFile(new File(filePath)),contentType);
-		newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+		Uri uri = FileProvider.getUriForFile(this, "xyz.parti.catan.fileprovider", new File(filePath));
+		newIntent.setDataAndType(uri, contentType);
 
+		List<ResolveInfo> resolvedInfoActivities = getPackageManager().queryIntentActivities(newIntent, PackageManager.MATCH_DEFAULT_ONLY);
+		for (ResolveInfo ri : resolvedInfoActivities) {
+			grantUriPermission(ri.activityInfo.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+		}
+		
 		try
 		{
 			startActivity(newIntent);
