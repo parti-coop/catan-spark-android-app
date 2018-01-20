@@ -1,11 +1,15 @@
 package xyz.parti.catan;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -15,6 +19,8 @@ import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -38,6 +44,7 @@ public class UfoWebView
 	private Activity m_activity;
 	private WebView m_webView;
 	private Listener m_listener;
+	private String m_lastOnlineUrl;
 	private boolean m_isAutomaticShowHideWait;
 
 	private WebChromeClient m_chromeClient = new WebChromeClient()
@@ -133,10 +140,43 @@ public class UfoWebView
 		}
 */
 
+		@SuppressWarnings("deprecation")
+		@Override
+		public void onReceivedError(WebView view, int errorCode, String description, String failingUrl)
+		{
+			Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
+			switch (errorCode)
+			{
+			case WebViewClient.ERROR_CONNECT:
+			case WebViewClient.ERROR_HOST_LOOKUP:
+			case WebViewClient.ERROR_IO:
+			case WebViewClient.ERROR_TIMEOUT:
+				onNetworkOffline();
+				return;
+			}
+
+			if (!Util.isNetworkOnline(MainAct.getInstance()))
+			{
+				onNetworkOffline();
+			}
+		}
+
+		@TargetApi(Build.VERSION_CODES.M)
+		@Override
+		public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error)
+		{
+			onReceivedError(view, error.getErrorCode(), error.getDescription().toString(), request.getUrl().toString());
+		}
+
+		@Override
 		public void onPageFinished(WebView view, String url)
 		{
 			if (m_listener != null)
 				m_listener.onPageLoadFinished(url);
+
+			// 앱 시작때부터 offline 일 경우 m_lastOnlineUrl 가 null 일 수 있다.
+			if (m_lastOnlineUrl == null)
+				m_lastOnlineUrl = url;
 
 			if (m_isAutomaticShowHideWait)
 			{
@@ -144,6 +184,7 @@ public class UfoWebView
 			}
 		}
 
+		@Override
 		public boolean shouldOverrideUrlLoading(WebView view, final String url)
 		{
 			Util.d("shouldOverrideUrlLoading: %s", url);
@@ -168,12 +209,6 @@ public class UfoWebView
 				m_activity.startActivity(itt);
 				return true;
 			}
-
-			if (m_launchHttpExternal && (url.startsWith("http:") || url.startsWith("https:")))
-			{
-				Util.startWebBrowser(m_activity, url);
-				return true;
-			}
 */
 
 			if (url.startsWith("http:") || url.startsWith("https:"))
@@ -183,6 +218,7 @@ public class UfoWebView
 					showWait();
 				}
 
+				m_lastOnlineUrl = url;
 				view.loadUrl(url, UfoWebView.extraHttpHeaders());
 				return true;
 			}
@@ -200,6 +236,18 @@ public class UfoWebView
 			}
 		}
 
+	};
+
+	private BroadcastReceiver m_connectivityReceiver = new BroadcastReceiver()
+	{
+		@Override
+		public void onReceive(final Context context, final Intent intent)
+		{
+			if (Util.isNetworkOnline(context))
+			{
+				onNetworkReady();
+			}
+		}
 	};
 
 	public UfoWebView(Activity act, View webView, Listener lsnr)
@@ -225,6 +273,20 @@ public class UfoWebView
 		m_webView.setWebViewClient(m_webClient);
 		m_webView.setWebChromeClient(m_chromeClient);
 		m_webView.addJavascriptInterface(this, "ufo");
+
+		onStart(act);
+	}
+
+	public void onStart(Activity act)
+	{
+		final IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+		act.registerReceiver(m_connectivityReceiver, intentFilter);
+	}
+
+	public void onStop(Activity act)
+	{
+		act.unregisterReceiver(m_connectivityReceiver);
 	}
 
 	public WebView getView()
@@ -265,8 +327,24 @@ public class UfoWebView
 			showWait();
 
 		Util.d("loadLocalHtml: %s", htmlName);
-		String url = "file:///android_asset/" + htmlName + ".html";
+		String url = "file:///android_asset/" + htmlName;
 		m_webView.loadUrl(url);
+	}
+
+	public void onNetworkOffline()
+	{
+		loadLocalHtml("offline.html");
+		hideWait();
+	}
+
+	public void onNetworkReady()
+	{
+		if (m_lastOnlineUrl != null)
+		{
+			loadRemoteUrl(m_lastOnlineUrl);
+			m_lastOnlineUrl = null;
+		}
+		else Util.d("onNetworkReady but lastUrl is null");
 	}
 
 	public void handleUfoLink(String link)

@@ -6,6 +6,8 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.util.Log;
 import android.view.View;
@@ -211,4 +213,10 @@ public class Util
 		ctx.startActivity(itt);
 	}
 
+	public static boolean isNetworkOnline(Context context)
+	{
+		ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo netInfo = cm.getActiveNetworkInfo();
+		return (netInfo != null && netInfo.isConnected());
+	}
 }

@@ -88,6 +88,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 		if (m_webView != null)
 		{
+			m_webView.onStart(this);
 			return;
 		}
 
@@ -125,6 +126,17 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				m_vwSplashScreen.setVisibility(View.GONE);
 			}
 		}, 2000);
+	}
+
+	@Override
+	public void onStop()
+	{
+		super.onStop();
+
+		if (m_webView != null)
+		{
+			m_webView.onStop(this);
+		}
 	}
 
 	private boolean isPushBundle(Bundle bun)
