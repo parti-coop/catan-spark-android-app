@@ -431,6 +431,13 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			m_downloadPrgsDlg.setMessage(fileName);
 			m_downloadPrgsDlg.setTitle(R.string.downloading);
 			m_downloadPrgsDlg.setCancelable(false);
+			m_downloadPrgsDlg.setButton(getResources().getString(android.R.string.cancel), new ProgressDialog.OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					showWaitMark(true);
+					CatanApp.getApiManager().cancelDownload();
+				}
+			});
 			m_downloadPrgsDlg.show();
 		}
 		else
@@ -474,6 +481,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			break;
 
 		case ApiMan.JOBID_DOWNLOAD_FILE:
+			showWaitMark(false);
 			HttpMan.FileDownloadInfo param = (HttpMan.FileDownloadInfo) _param;
 			onFileDownloaded(param.filePath);
 			break;

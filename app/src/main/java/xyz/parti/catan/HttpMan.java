@@ -25,6 +25,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.net.ssl.HostnameVerifier;
@@ -58,6 +59,7 @@ public class HttpMan implements Runnable
 	public static final int ERROR_UNKNOWN_HOST = -3;
 	public static final int ERROR_REQUEST_FAIL = -4;
 	public static final int ERROR_RESULT_ERROR = -5;
+	public static final int ERROR_JOB_CANCEL = -9;
 
 	private static final String SVR_ENCODING = "UTF-8";
 
@@ -246,12 +248,13 @@ public class HttpMan implements Runnable
 		public int jobId;
 		public QuerySpec spec;
 		public Object result;
+		public boolean isCancelFired;
 	}
 
 	private Handler m_handler;
 	private LinkedBlockingQueue<JobItem> m_jobQueue;
 	private Thread m_thread;
-	private boolean m_stopThreadFired;
+	private JobItem m_currentJob;
 
 	public HttpMan(boolean doNotCreateHandler)
 	{
@@ -312,6 +315,25 @@ public class HttpMan implements Runnable
 		addJobToQueue(job);
 	}
 
+	public void cancel(int jobId)
+	{
+		Iterator<JobItem> itr = m_jobQueue.iterator();
+		while (itr.hasNext())
+		{
+			JobItem job = itr.next();
+			if (job != null && jobId == job.jobId)
+			{
+				job.isCancelFired = true;
+			}
+		}
+
+		JobItem job = m_currentJob;
+		if (job != null && jobId == job.jobId)
+		{
+			job.isCancelFired = true;
+		}
+	}
+
 	public boolean isQueueEmpty()
 	{
 		return m_jobQueue.isEmpty();
@@ -340,15 +362,21 @@ public class HttpMan implements Runnable
 		}
 	}
 
+	private static class JobCancelException extends RuntimeException
+	{
+	}
+
 	public void run()
 	{
 		JobItem job = null;
 
-		while (m_stopThreadFired == false)
+		while (true)
 		{
 			try
 			{
+				m_currentJob = null;
 				job = m_jobQueue.take();
+				m_currentJob = job;
 
 				if (job == null)
 				{
@@ -360,6 +388,12 @@ public class HttpMan implements Runnable
 				{
 					// empty job
 					sendMessageToHandler(job, 0);
+					continue;
+				}
+
+				if (job.isCancelFired)
+				{
+					sendMessageToHandler(job, ERROR_JOB_CANCEL);
 					continue;
 				}
 
@@ -574,6 +608,12 @@ public class HttpMan implements Runnable
 					if (read <= 0)
 						break;
 
+					if (job.isCancelFired)
+					{
+						outStrm.close();
+						throw new JobCancelException();
+					}
+
 					outStrm.write(buff, 0, read);
 
 					if (ba == null)
@@ -639,6 +679,10 @@ public class HttpMan implements Runnable
 			{
 				sendMessageToHandler(job, ERROR_RESULT_ERROR);
 			}
+			catch (JobCancelException cex)
+			{
+				sendMessageToHandler(job, ERROR_JOB_CANCEL);
+			}
 			catch (Exception ex)
 			{
 				ex.printStackTrace();
@@ -646,6 +690,7 @@ public class HttpMan implements Runnable
 			}
 		}
 
+		m_currentJob = null;
 		m_thread = null;
 	}
 
@@ -682,7 +727,10 @@ public class HttpMan implements Runnable
 				{
 					File f = new File((String) job.result);
 					if (f.exists())
+					{
+						Util.d("Delete download file: %s", f.getAbsolutePath());
 						f.delete();
+					}
 				}
 				catch (Exception ex)
 				{

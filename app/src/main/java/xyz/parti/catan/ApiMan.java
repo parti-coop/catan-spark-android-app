@@ -121,6 +121,11 @@ public class ApiMan implements HttpMan.OnHttpListener
 		CatanApp.getApp().getHttpManager().requestDownload(this, JOBID_DOWNLOAD_FILE, spec, pathToSave);
 	}
 
+	public void cancelDownload()
+	{
+		CatanApp.getApp().getHttpManager().cancel(JOBID_DOWNLOAD_FILE);
+	}
+
 	private String parseDeleteResult(JSONObject json) throws JSONException
 	{
 		//String userToken = json.getString("token");
@@ -153,17 +158,19 @@ public class ApiMan implements HttpMan.OnHttpListener
 				m_activeListeners.remove(lsnr);
 
 			String errMsg;
-			if (failHttpStatus == -3 || failHttpStatus == -1)
-			{
-				errMsg = CatanApp.getApp().getResources().getString(R.string.error_no_internet);
-			}
-			else if (failHttpStatus == -2)
+			if (failHttpStatus == HttpMan.ERROR_UNKNOWN_HOST
+			|| failHttpStatus == HttpMan.ERROR_CONNECTION_TIMEOUT)
 			{
 				errMsg = CatanApp.getApp().getResources().getString(R.string.error_server_noconn);
 			}
-			else if (failHttpStatus == -4)
+			else if (failHttpStatus == HttpMan.ERROR_REQUEST_FAIL
+			|| failHttpStatus == HttpMan.ERROR_UNKNOWN)
 			{
 				errMsg = CatanApp.getApp().getResources().getString(R.string.error_server_fail);
+			}
+			else if (failHttpStatus == HttpMan.ERROR_JOB_CANCEL)
+			{
+				errMsg = CatanApp.getApp().getResources().getString(R.string.error_download_fail);
 			}
 			else
 			{
