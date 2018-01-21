@@ -41,6 +41,8 @@ public class UfoWebView
 		void onPostAction(String action, JSONObject json) throws JSONException;
 	}
 
+	private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A";
+
 	private Activity m_activity;
 	private WebView m_webView;
 	private Listener m_listener;
@@ -219,7 +221,18 @@ public class UfoWebView
 				}
 
 				m_lastOnlineUrl = url;
-				view.loadUrl(url, UfoWebView.extraHttpHeaders());
+
+				if (url.indexOf("google.com/") > 0)
+				{
+					view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+					view.loadUrl(url);
+				}
+				else
+				{
+					view.getSettings().setUserAgentString(null);   // set default
+					view.loadUrl(url, UfoWebView.extraHttpHeaders());
+				}
+
 				return true;
 			}
 
