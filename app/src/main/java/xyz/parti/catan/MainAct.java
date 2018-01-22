@@ -31,6 +31,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.net.URLConnection;
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 public class MainAct extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
@@ -304,7 +305,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				showWaitMark(false);
 
 				// 이후 링크 클릭시 자동으로 로딩화면이 show/hide 될 수 있도록 함
-				m_webView.setAutoWait(true);
+				//m_webView.setAutoWait(true); 안함
 			}
 		}
 	}

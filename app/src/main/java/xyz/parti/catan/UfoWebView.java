@@ -170,6 +170,8 @@ public class UfoWebView
 			onReceivedError(view, error.getErrorCode(), error.getDescription().toString(), request.getUrl().toString());
 		}
 
+		private Pattern m_reIsMySite = Pattern.compile(BuildConfig.API_BASE_URL_REGX);
+
 		@Override
 		public void onPageFinished(WebView view, String url)
 		{
@@ -180,7 +182,8 @@ public class UfoWebView
 			if (m_lastOnlineUrl == null)
 				m_lastOnlineUrl = url;
 
-			if (m_isAutomaticShowHideWait)
+			// 자동 혹은 빠띠 사이트가 아니라면 타임아웃시 뺑글이 해제
+			if (m_isAutomaticShowHideWait || m_reIsMySite.matcher(url).lookingAt() == false)
 			{
 				hideWait();
 			}
@@ -215,10 +218,7 @@ public class UfoWebView
 
 			if (url.startsWith("http:") || url.startsWith("https:"))
 			{
-				if (m_isAutomaticShowHideWait)
-				{
-					showWait();
-				}
+				showWait();
 
 				m_lastOnlineUrl = url;
 
@@ -319,26 +319,20 @@ public class UfoWebView
 
 	public void goBack()
 	{
-		if (m_isAutomaticShowHideWait)
-			showWait();
-
+		showWait();
 		m_webView.goBack();
 	}
 
 	public void loadRemoteUrl(String url)
 	{
-		if (m_isAutomaticShowHideWait)
-			showWait();
-
+		showWait();
 		Util.d("loadRemoteUrl: %s", url);
 		m_webView.loadUrl(url);
 	}
 
 	public void loadLocalHtml(String htmlName)
 	{
-		if (m_isAutomaticShowHideWait)
-			showWait();
-
+		showWait();
 		Util.d("loadLocalHtml: %s", htmlName);
 		String url = "file:///android_asset/" + htmlName;
 		m_webView.loadUrl(url);
