@@ -42,6 +42,7 @@ public class UfoWebView
 	}
 
 	private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A";
+	private static final String GOOGLE_OAUTH_START_URL = BuildConfig.API_BASE_URL + "users/auth/google_oauth2";
 
 	private Activity m_activity;
 	private WebView m_webView;
@@ -222,17 +223,44 @@ public class UfoWebView
 
 				m_lastOnlineUrl = url;
 
-				if (url.indexOf("google.com/") > 0)
-				{
-					view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
-					view.loadUrl(url);
-				}
-				else
-				{
-					view.getSettings().setUserAgentString(null);   // set default
-					view.loadUrl(url, UfoWebView.extraHttpHeaders());
+				if ( BuildConfig.IS_DEBUG) {
+					// 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
+					// 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
+					String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
+					if ( url.contains(GOOGLE_OAUTH_FOR_DEV_URL) ) {
+						view.loadUrl(url.replace("https://parti.dev/", BuildConfig.API_BASE_URL), UfoWebView.extraHttpHeaders());
+						return true;
+					}
 				}
 
+				if (url.contains(GOOGLE_OAUTH_START_URL))
+				{
+					// 구글 인증이 시작되었다.
+					// 가짜 User-Agent 사용을 시작한다.
+					view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+					view.loadUrl(url, UfoWebView.extraHttpHeaders());
+					return true;
+				}
+				else if ( FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString()) )
+				{
+					// 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
+					if ( url.indexOf("https://accounts.google.com") < 0 ) {
+						// 구글 인증이 시작된 상태였다가
+						// 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
+						// 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
+						view.getSettings().setUserAgentString(null);   // set default
+						view.loadUrl(url, UfoWebView.extraHttpHeaders());
+						return true;
+					} else {
+						// 아직 구글로그인 중이다
+						view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+						view.loadUrl(url, UfoWebView.extraHttpHeaders());
+						return true;
+					}
+				}
+
+				view.getSettings().setUserAgentString(null);   // set default
+				view.loadUrl(url, UfoWebView.extraHttpHeaders());
 				return true;
 			}
 
