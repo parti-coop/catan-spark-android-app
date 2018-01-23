@@ -140,6 +140,15 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 	}
 
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent intent)
+	{
+		if (requestCode == UfoWebView.REQCODE_CHOOSE_FILE)
+		{
+			m_webView.onFileChooseResult(resultCode, intent);
+		}
+	}
+
 	private boolean isPushBundle(Bundle bun)
 	{
 		return (bun.containsKey(PUSHARG_TITLE)

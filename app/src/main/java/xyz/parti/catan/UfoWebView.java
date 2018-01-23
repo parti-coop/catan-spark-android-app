@@ -3,6 +3,7 @@ package xyz.parti.catan;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -18,6 +19,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.SslErrorHandler;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -41,6 +43,7 @@ public class UfoWebView
 		void onPostAction(String action, JSONObject json) throws JSONException;
 	}
 
+	public static final int REQCODE_CHOOSE_FILE = 1234;
 	private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A";
 	private static final String GOOGLE_OAUTH_START_URL = BuildConfig.API_BASE_URL + "users/auth/google_oauth2";
 
@@ -48,7 +51,11 @@ public class UfoWebView
 	private WebView m_webView;
 	private Listener m_listener;
 	private String m_lastOnlineUrl;
+	private boolean m_wasOffline;
 	private boolean m_isAutomaticShowHideWait;
+
+	private ValueCallback<Uri[]> m_uploadMultiValueCB;
+	private ValueCallback<Uri> m_uploadSingleValueCB;
 
 	private WebChromeClient m_chromeClient = new WebChromeClient()
 	{
@@ -127,7 +134,79 @@ public class UfoWebView
 				Util.startWebBrowser(context, url);
 			}
 		}
+
+		private boolean startFileChooser(ValueCallback<Uri> single, ValueCallback<Uri[]> multi, Intent itt)
+		{
+			m_uploadSingleValueCB = single;
+			m_uploadMultiValueCB = multi;
+
+			try
+			{
+				m_activity.startActivityForResult(itt, REQCODE_CHOOSE_FILE);
+			}
+			catch (ActivityNotFoundException e)
+			{
+				m_uploadSingleValueCB = null;
+				m_uploadMultiValueCB = null;
+				Util.toastShort(m_activity, "Cannot open file chooser");
+				return false;
+			}
+
+			return true;
+		}
+
+		@Override
+		@TargetApi(Build.VERSION_CODES.LOLLIPOP)
+		public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams)
+		{
+			if (m_uploadMultiValueCB != null)
+			{
+				m_uploadMultiValueCB.onReceiveValue(null);
+			}
+
+			return startFileChooser(null, filePathCallback, fileChooserParams.createIntent());
+		}
+
+		public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture)
+		{
+			openFileChooser(uploadMsg, acceptType);
+		}
+
+		public void openFileChooser(ValueCallback uploadMsg, String acceptType)
+		{
+			Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+			intent.addCategory(Intent.CATEGORY_OPENABLE);
+			intent.setType(acceptType);
+
+			startFileChooser(uploadMsg, null, Intent.createChooser(intent, "File Browser"));
+		}
+
+		public void openFileChooser(ValueCallback<Uri> uploadMsg)
+		{
+			openFileChooser(uploadMsg, "image/*");
+		}
 	};
+
+	public void onFileChooseResult(int resultCode, Intent intent)
+	{
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+		{
+			if (m_uploadMultiValueCB != null)
+			{
+				m_uploadMultiValueCB.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
+				m_uploadMultiValueCB = null;
+			}
+		}
+		else
+		{
+			if (m_uploadSingleValueCB != null)
+			{
+				Uri result = intent == null || resultCode != Activity.RESULT_OK ? null : intent.getData();
+				m_uploadSingleValueCB.onReceiveValue(result);
+				m_uploadSingleValueCB = null;
+			}
+		}
+	}
 
 	private WebViewClient m_webClient = new WebViewClient()
 	{
@@ -368,12 +447,18 @@ public class UfoWebView
 
 	public void onNetworkOffline()
 	{
+		m_wasOffline = true;
 		loadLocalHtml("offline.html");
 		hideWait();
 	}
 
 	public void onNetworkReady()
 	{
+		if (!m_wasOffline)
+			return;
+
+		m_wasOffline = false;
+
 		if (m_lastOnlineUrl != null)
 		{
 			loadRemoteUrl(m_lastOnlineUrl);
