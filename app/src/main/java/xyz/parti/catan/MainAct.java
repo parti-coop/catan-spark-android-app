@@ -297,7 +297,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		{
 			// 최초 mobile_app/start 페이지 방문 후 다음(두번째) 페이지 (보통 초기페이지) 로드 완료 시,
 			// 앱 구동때부터 보이던 WaitScreen 을 감춘다.
-			if (++m_nPageFinishCount >= 2)
+			if (++m_nPageFinishCount >= 2 || BuildConfig.API_BASE_URL.equals(url))
 			{
 				Util.d("InitialWaitDone, clearNavHistory");
 				m_isInitialWaitDone = true;
