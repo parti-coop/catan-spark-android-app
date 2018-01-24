@@ -17,7 +17,6 @@ import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -31,7 +30,6 @@ import org.json.JSONObject;
 import java.io.File;
 import java.net.URLConnection;
 import java.util.List;
-import java.util.regex.Pattern;
 
 
 public class MainAct extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
@@ -179,9 +177,14 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	public void alertPushDialog(Bundle bun)
 	{
 		m_delayedBundle = null;
+		final String url = bun.getString(PUSHARG_URL);
+		if (!Util.isNullOrEmpty(url))
+		{
+			safelyGoToURL(url);
+		}
+/*
 		String title = bun.getString(PUSHARG_TITLE);
 		String msg = bun.getString(PUSHARG_MESSAGE);
-		final String url = bun.getString(PUSHARG_URL);
 
 		if (Util.isNullOrEmpty(title) && Util.isNullOrEmpty(msg))
 		{
@@ -211,10 +214,16 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				});
 			alert.show();
 		}
+*/
 	}
 
 	private void safelyGoToURL(String url)
 	{
+		if (url.startsWith("/"))
+		{
+			url = ApiMan.getBaseUrl() + url.substring(1);
+		}
+
 		if (isShowWait())
 		{
 			m_urlToGoDelayed = url;
@@ -222,12 +231,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		else
 		{
 			m_urlToGoDelayed = null;
-
-			if (url.startsWith("/"))
-			{
-				url = ApiMan.getBaseUrl() + url.substring(1);
-			}
-
 			m_webView.loadRemoteUrl(url);
 		}
 	}

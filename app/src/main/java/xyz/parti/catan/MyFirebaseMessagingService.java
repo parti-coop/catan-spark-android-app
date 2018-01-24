@@ -1,6 +1,5 @@
 package xyz.parti.catan;
 
-import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -8,7 +7,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
-import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
@@ -37,7 +35,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 		// Check if message contains a notification payload.
 		if (remoteMessage.getNotification() != null)
 		{
-			Activity act = CatanApp.getCurActivity();
+			/*Activity act = CatanApp.getCurActivity();
 			if (act != null && act == MainAct.getInstance())
 			{
 				// 앱이 실행중이다. 바로 푸시 내용을 보여준다.
@@ -57,7 +55,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 				// sendNotification를 호출하면 노티바에도 등록함 (위에서 alert 보여주도록 했기 때문에 같은 것을 두번 보게 됨)
 				//sendNotification(remoteMessage);
 			}
-			else
+			else*/
 			{
 				sendNotification(remoteMessage);
 			}
@@ -75,14 +73,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 		intent.putExtra(MainAct.PUSHARG_URL, rmsg.getData().get("url"));
 		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
 
-		//Bitmap bmpLargeIcon = BitmapFactory.decodeResource(getApplicationContext().getResources(), R.mipmap.ic_launcher);
-
 		String channelId = getString(R.string.default_notification_channel_id);
 		Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
 		NotificationCompat.Builder notificationBuilder =
 			new NotificationCompat.Builder(this, channelId)
 				.setSmallIcon(R.drawable.ic_stat_ic_notification)
-				//.setLargeIcon(bmpLargeIcon)
 				.setTicker(noti.getTitle())
 				.setContentTitle(noti.getTitle())
 				.setContentText(noti.getBody())
