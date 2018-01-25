@@ -233,7 +233,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		return (m_vwWaitScreen.getVisibility() == View.VISIBLE);
 	}
 
-	private static final long AUTO_HIDE_TIMEOUT_MILLIS = 5000;
+	private static final long AUTO_HIDE_TIMEOUT_MILLIS = 10000;
 
 	public void showWaitMark(boolean show)
 	{
@@ -241,9 +241,16 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 		if (show != isShowWait())
 		{
-			int vis = show ? View.VISIBLE : View.GONE;
-			m_vwWaitScreen.setVisibility(vis);
-			m_prgsView.setVisibility(vis);
+			final int vis = show ? View.VISIBLE : View.GONE;
+			new Handler().postDelayed(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					m_vwWaitScreen.setVisibility(vis);
+					m_prgsView.setVisibility(vis);
+				}
+			}, (vis == View.VISIBLE ? 0 : 500));
 		}
 
 		if (show)
