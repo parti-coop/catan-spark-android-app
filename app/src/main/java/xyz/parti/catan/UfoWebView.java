@@ -259,6 +259,7 @@ public class UfoWebView
 				m_listener.onPageLoadFinished(url);
 
 			// 앱 시작때부터 offline 일 경우 m_lastOnlineUrl 가 null 일 수 있다.
+			// 캐쉬를 타서 shouldOverrideUrlLoading가 호출 안되면 여기서 세팅한다
 			if (m_lastOnlineUrl == null)
 				m_lastOnlineUrl = url;
 
@@ -356,6 +357,11 @@ public class UfoWebView
 			}
 		}
 
+		@TargetApi(Build.VERSION_CODES.N)
+		@Override
+		public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+			return super.shouldOverrideUrlLoading(view, request.getUrl().toString());
+		}
 	};
 
 	private BroadcastReceiver m_connectivityReceiver = new BroadcastReceiver()
@@ -434,7 +440,7 @@ public class UfoWebView
 	{
 		showWait();
 		Util.d("loadRemoteUrl: %s", url);
-		m_webView.loadUrl(url);
+		m_webView.loadUrl(url, UfoWebView.extraHttpHeaders());
 	}
 
 	public void loadLocalHtml(String htmlName)
@@ -631,5 +637,9 @@ Util.d("JS: %s", js);
 		headers.put("catan-version", "1.0.0");
 
 		return headers;
+	}
+
+	public void resetLastOnlineUrl() {
+		m_lastOnlineUrl = null;
 	}
 }

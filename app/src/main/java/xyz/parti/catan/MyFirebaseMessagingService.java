@@ -1,5 +1,6 @@
 package xyz.parti.catan;
 
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -68,8 +69,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 
 		Intent intent = new Intent(this, MainAct.class);
 		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-		intent.putExtra(MainAct.PUSHARG_TITLE, noti.getTitle());
-		intent.putExtra(MainAct.PUSHARG_MESSAGE, noti.getBody());
 		intent.putExtra(MainAct.PUSHARG_URL, rmsg.getData().get("url"));
 		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
 
@@ -86,6 +85,13 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 				.setDefaults(Notification.DEFAULT_ALL)
 				.setSound(defaultSoundUri)
 				.setContentIntent(pendingIntent);
+
+		Activity act = CatanApp.getCurActivity();
+		if (act != null && act == MainAct.getInstance()) {
+			// 앱이 실행중이다. 바로 푸시 내용을 보여준다.
+			// 안드로이드 5.0 버전이상, 이하 버전은 무시
+			notificationBuilder.setPriority(Notification.PRIORITY_HIGH);
+		}
 
 		NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		notificationManager.notify(0, notificationBuilder.build());

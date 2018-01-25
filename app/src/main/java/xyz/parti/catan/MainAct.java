@@ -37,8 +37,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	//private static final String KEY_UID = "xUID";
 	private static final String KEY_AUTHKEY = "xAK";
 
-	public static final String PUSHARG_TITLE = "title";
-	public static final String PUSHARG_MESSAGE = "body";
 	public static final String PUSHARG_URL = "url";
 
 	private View m_vwSplashScreen;
@@ -149,9 +147,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 	private boolean isPushBundle(Bundle bun)
 	{
-		return (bun.containsKey(PUSHARG_TITLE)
-			|| bun.containsKey(PUSHARG_MESSAGE)
-			|| bun.containsKey(PUSHARG_URL));
+		return bun.containsKey(PUSHARG_URL);
 	}
 
 	@Override
@@ -185,34 +181,10 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 /*
 		String title = bun.getString(PUSHARG_TITLE);
 		String msg = bun.getString(PUSHARG_MESSAGE);
-
-		if (Util.isNullOrEmpty(title) && Util.isNullOrEmpty(msg))
+        m_delayedBundle = null;
+		if (!Util.isNullOrEmpty(url))
 		{
-			if (!Util.isNullOrEmpty(url))
-			{
-				safelyGoToURL(url);
-			}
-
-			return;
-		}
-
-		if (Util.isNullOrEmpty(url))
-		{
-			Util.showSimpleAlert(this, title, msg);
-		}
-		else
-		{
-			AlertDialog.Builder alert = new AlertDialog.Builder(this);
-			alert.setTitle(title);
-			alert.setMessage(msg);
-			alert.setNeutralButton(android.R.string.ok,
-				new DialogInterface.OnClickListener() {
-					public void onClick( DialogInterface dialog, int which) {
-						dialog.dismiss();
-						safelyGoToURL(url);
-					}
-				});
-			alert.show();
+			safelyGoToURL(url);
 		}
 */
 	}
@@ -231,6 +203,9 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		else
 		{
 			m_urlToGoDelayed = null;
+			m_webView.resetLastOnlineUrl();
+
+			showWaitMark(true);
 			m_webView.loadRemoteUrl(url);
 		}
 	}
@@ -291,6 +266,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 		else if (m_urlToGoDelayed != null)
 		{
+			showWaitMark(true);
 			m_webView.loadRemoteUrl(m_urlToGoDelayed);
 			m_urlToGoDelayed = null;
 		}
