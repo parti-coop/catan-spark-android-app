@@ -42,6 +42,10 @@ public class UfoWebView
 	public interface Listener
 	{
 		void onPostAction(String action, JSONObject json) throws JSONException;
+		void onProgressChange(int progress);
+		void onPageStarted(String url);
+		void onPageFinished(String url);
+		String getBaseURL();
 	}
 
 	public static final int REQCODE_CHOOSE_FILE = 1234;
@@ -52,7 +56,6 @@ public class UfoWebView
 	private WebView m_webView;
 	private Listener m_listener;
 	private boolean m_wasOffline;
-	private boolean m_isAutomaticShowHideWait;
 	private List<String> m_onlineUrls = new ArrayList<>();
 
 	private ValueCallback<Uri[]> m_uploadMultiValueCB;
@@ -186,6 +189,13 @@ public class UfoWebView
 		{
 			openFileChooser(uploadMsg, "image/*");
 		}
+
+		@Override
+		public void onProgressChanged(WebView view, int newProgress) {
+			Util.d("onProgressChanged %d", newProgress);
+			m_listener.onProgressChange(newProgress);
+			super.onProgressChanged(view, newProgress);
+		}
 	};
 
 	public void onFileChooseResult(int resultCode, Intent intent)
@@ -222,6 +232,12 @@ public class UfoWebView
 		{
 		}
 */
+		@Override
+		public void onPageStarted(WebView view, String url, Bitmap favicon)
+		{
+			m_listener.onPageStarted(url);
+			super.onPageStarted(view, url, favicon);
+		}
 
 		@SuppressWarnings("deprecation")
 		@Override
@@ -256,11 +272,8 @@ public class UfoWebView
 		@Override
 		public void onPageFinished(WebView view, String url)
 		{
-			// 자동 혹은 빠띠 사이트가 아니라면 타임아웃시 뺑글이 해제
-			if (m_isAutomaticShowHideWait || m_reIsMySite.matcher(url).lookingAt() == false)
-			{
-				hideWait();
-			}
+			m_listener.onPageFinished(url);
+			super.onPageFinished(view, url);
 		}
 
 		@Override
@@ -292,8 +305,6 @@ public class UfoWebView
 
 			if (url.startsWith("http:") || url.startsWith("https:"))
 			{
-				showWait();
-
 				if ( BuildConfig.IS_DEBUG) {
 					// 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
 					// 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
@@ -418,14 +429,12 @@ public class UfoWebView
 
 	public void loadRemoteUrl(String url)
 	{
-		showWait();
 		Util.d("loadRemoteUrl: %s", url);
 		m_webView.loadUrl(url, UfoWebView.extraHttpHeaders());
 	}
 
 	public void loadLocalHtml(String htmlName)
 	{
-		showWait();
 		Util.d("loadLocalHtml: %s", htmlName);
 		String url = "file:///android_asset/" + htmlName;
 		m_webView.loadUrl(url);
@@ -435,7 +444,6 @@ public class UfoWebView
 	{
 		m_wasOffline = true;
 		loadLocalHtml("offline.html");
-		hideWait();
 	}
 
 	public void onNetworkReady()
@@ -533,42 +541,16 @@ Util.d("JS: %s", js);
 	}
 
 	@JavascriptInterface
-	public void showWait()
-	{
-		m_activity.runOnUiThread(new Runnable()
-		{
-			public void run()
-			{
-				MainAct.getInstance().showWaitMark(true);
-			}
-		});
-	}
-
-	@JavascriptInterface
-	public void hideWait()
-	{
-		m_activity.runOnUiThread(new Runnable()
-		{
-			public void run()
-			{
-				MainAct.getInstance().showWaitMark(false);
-			}
-		});
-	}
-
-	@JavascriptInterface
-	public void setAutoWait(boolean isAuto)
-	{
-		m_isAutomaticShowHideWait = isAuto;
-	}
-
-	@JavascriptInterface
 	public void goBack()
 	{
-		m_webView.post(new Runnable() {
+		m_activity.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				showWait();
+				if(getLastOnlineUrl() == null) {
+					m_listener.getBaseURL();
+					return;
+				}
+
 				m_onlineUrls.remove(m_onlineUrls.size() - 1);
 				loadRemoteUrl(getLastOnlineUrl());
 			}

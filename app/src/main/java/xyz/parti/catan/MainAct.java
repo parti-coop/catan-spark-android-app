@@ -1,5 +1,6 @@
 package xyz.parti.catan;
 
+import android.animation.ObjectAnimator;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.ProgressDialog;
@@ -19,6 +20,8 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 
 import com.crashlytics.android.Crashlytics;
@@ -31,7 +34,6 @@ import java.io.File;
 import java.net.URLConnection;
 import java.util.List;
 
-
 public class MainAct extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
 {
 	//private static final String KEY_UID = "xUID";
@@ -39,14 +41,13 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 	public static final String PUSHARG_URL = "url";
 
+	public static final String START_URL = BuildConfig.API_BASE_URL + "mobile_app/start";
+
 	private View m_vwSplashScreen;
-	private View m_vwWaitScreen;
-	private ProgressBar m_prgsView;
 	private UfoWebView m_webView;
+	private FrameLayout m_progressLayoutView;
+	private ProgressBar m_progressBarView;
 
-	private long m_timeToHideWait;
-
-	private String m_urlToGoDelayed;
 	private Bundle m_delayedBundle;
 
 	private ProgressDialog m_downloadPrgsDlg;
@@ -88,9 +89,11 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 
 		m_vwSplashScreen = findViewById(R.id.splash);
-		m_vwWaitScreen = findViewById(R.id.waitScr);
-		m_prgsView = (ProgressBar) findViewById(R.id.prgsBar);
 		m_webView = new UfoWebView(this, findViewById(R.id.web), this);
+		m_progressLayoutView = findViewById(R.id.progressLayout);
+		m_progressBarView = findViewById(R.id.progressBar);
+		m_progressBarView.setMax(100);
+		m_progressBarView.setProgress(0);
 
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
 		{
@@ -109,7 +112,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 
 		// 앱이 최초 로드할 웹서버의 주소입니다. 필요시 변경 가능합니다. 웹서버에도 변경은 필수!
-		m_webView.loadRemoteUrl(ApiMan.getBaseUrl() + "mobile_app/start");
+		m_webView.loadRemoteUrl(MainAct.START_URL);
 
 		// 1초간 스플래시 화면을 보여줍니다.
 		// iOS는 Launch스크린이 필수라서 대응하며 만든 기능입니다. 이 기능이 필요 없으면 연락주세요.
@@ -157,34 +160,17 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		Bundle bun = intent.getExtras();
 		if (bun != null && isPushBundle(bun))
 		{
-			if (isShowWait())
-			{
-				m_delayedBundle = bun;
-			}
-			else
-			{
-				alertPushDialog(bun);
-			}
+			alertPushDialog(bun);
 		}
 	}
 
 	public void alertPushDialog(Bundle bun)
 	{
-		m_delayedBundle = null;
 		final String url = bun.getString(PUSHARG_URL);
 		if (!Util.isNullOrEmpty(url))
 		{
 			safelyGoToURL(url);
 		}
-/*
-		String title = bun.getString(PUSHARG_TITLE);
-		String msg = bun.getString(PUSHARG_MESSAGE);
-        m_delayedBundle = null;
-		if (!Util.isNullOrEmpty(url))
-		{
-			safelyGoToURL(url);
-		}
-*/
 	}
 
 	private void safelyGoToURL(String url)
@@ -194,27 +180,12 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			url = ApiMan.getBaseUrl() + url.substring(1);
 		}
 
-		if (isShowWait())
-		{
-			m_urlToGoDelayed = url;
-		}
-		else
-		{
-			m_urlToGoDelayed = null;
-
-			showWaitMark(true);
-			m_webView.loadRemoteUrl(url);
-		}
+		m_webView.loadRemoteUrl(url);
 	}
 
 	@Override
 	public void onBackPressed()
 	{
-		if (isShowWait())
-		{
-			return;
-		}
-
 		if (m_webView.canGoBack())
 		{
 			m_webView.goBack();
@@ -225,65 +196,46 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 	}
 
-	private boolean isShowWait()
-	{
-		return (m_vwWaitScreen.getVisibility() == View.VISIBLE);
-	}
-
-	private static final long AUTO_HIDE_TIMEOUT_MILLIS = 10000;
-
-	public void showWaitMark(boolean show)
-	{
-		Util.d("showWaitMark(%b)", show);
-
-		if (show != isShowWait())
-		{
-			final int vis = show ? View.VISIBLE : View.GONE;
-			new Handler().postDelayed(new Runnable()
-			{
-				@Override
-				public void run()
-				{
-					m_vwWaitScreen.setVisibility(vis);
-					m_prgsView.setVisibility(vis);
-				}
-			}, (vis == View.VISIBLE ? 0 : 500));
-		}
-
-		if (show)
-		{
-			// 로딩화면(스크린 터치를 못하게 함)을 자동으로 hide시키는 타임아웃을 설정합니다.
-			// HTML 페이지 내의 어떤 요소(예:이미지)가 로딩이 실패할 경우 onPageLoadFinished 가
-			// 호출되지 않을 수 있는데, 그런 경우 최소 Back 버튼이나 다른 링크라도 누를 수 있도록 하기 위해서 입니다.
-			m_timeToHideWait = System.currentTimeMillis() + AUTO_HIDE_TIMEOUT_MILLIS - 300;
-			m_prgsView.postDelayed(new Runnable()
-			{
-				@Override
-				public void run()
-				{
-					if (m_timeToHideWait < System.currentTimeMillis())
-					{
-						showWaitMark(false);
-					}
-				}
-			}, AUTO_HIDE_TIMEOUT_MILLIS);
-		}
-		else if (m_urlToGoDelayed != null)
-		{
-			showWaitMark(true);
-			m_webView.loadRemoteUrl(m_urlToGoDelayed);
-			m_urlToGoDelayed = null;
-		}
-		else if (m_delayedBundle != null)
-		{
-			alertPushDialog(m_delayedBundle);
-		}
-	}
-
 	private String getAuthKey()
 	{
 		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
 		return sp.getString(KEY_AUTHKEY, null);
+	}
+
+	@Override
+	public void onPageStarted(String url) {
+		m_progressLayoutView.setVisibility(View.VISIBLE);
+	}
+
+	@Override
+	public void onPageFinished(String url) {
+		if (MainAct.START_URL.equals(url) && m_delayedBundle != null) {
+			alertPushDialog(m_delayedBundle);
+			m_delayedBundle = null;
+		}
+		m_progressLayoutView.setVisibility(View.GONE);
+	}
+
+	@Override
+	public void onProgressChange(int progress) {
+		if (progress < 100) {
+			if (progress < m_progressBarView.getProgress()) {
+				m_progressBarView.setProgress(0);
+			}
+			m_progressLayoutView.setVisibility(View.VISIBLE);
+			ObjectAnimator animation = ObjectAnimator.ofInt(m_progressBarView, "progress", progress);
+			animation.setDuration(300); // 0.3 second
+			animation.setInterpolator(new DecelerateInterpolator());
+			animation.start();
+		} else {
+			m_progressLayoutView.setVisibility(View.GONE);
+			m_progressBarView.setProgress(0);
+		}
+	}
+
+	@Override
+	public String getBaseURL() {
+		return BuildConfig.API_BASE_URL;
 	}
 
 	@Override
@@ -399,7 +351,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			m_downloadPrgsDlg.setButton(getResources().getString(android.R.string.cancel), new ProgressDialog.OnClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
-					showWaitMark(true);
 					CatanApp.getApiManager().cancelDownload();
 				}
 			});
@@ -410,7 +361,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			Util.d("Unhandled post action: %s", action);
 		}
 	}
-
 
 	@Override
 	public boolean onApiError(int jobId, String errMsg)
@@ -430,7 +380,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			break;
 		}
 
-		showWaitMark(false);
 		// false 리턴하면 alert(errMsg)를 띄우게 된다.
 		return false;
 	}
@@ -446,7 +395,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			break;
 
 		case ApiMan.JOBID_DOWNLOAD_FILE:
-			showWaitMark(false);
 			HttpMan.FileDownloadInfo param = (HttpMan.FileDownloadInfo) _param;
 			onFileDownloaded(param.filePath);
 			break;
