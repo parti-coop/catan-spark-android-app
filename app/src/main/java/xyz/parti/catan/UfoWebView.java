@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
@@ -20,7 +21,9 @@ import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
+import android.webkit.WebBackForwardList;
 import android.webkit.WebChromeClient;
+import android.webkit.WebHistoryItem;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -45,6 +48,7 @@ public class UfoWebView
 		void onProgressChange(int progress);
 		void onPageStarted(String url);
 		void onPageFinished(String url);
+		void onPageError(String failingUrl);
 		String getBaseURL();
 	}
 
@@ -241,23 +245,22 @@ public class UfoWebView
 
 		@SuppressWarnings("deprecation")
 		@Override
-		public void onReceivedError(WebView view, int errorCode, String description, String failingUrl)
-		{
+		public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
 			Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
-			switch (errorCode)
-			{
-			case WebViewClient.ERROR_CONNECT:
-			case WebViewClient.ERROR_HOST_LOOKUP:
-			case WebViewClient.ERROR_IO:
-			case WebViewClient.ERROR_TIMEOUT:
+			if (Util.isNetworkOnline(MainAct.getInstance())) {
+				m_listener.onPageError(failingUrl);
+			} else {
 				onNetworkOffline();
-				return;
 			}
+		}
 
-			if (!Util.isNetworkOnline(MainAct.getInstance()))
-			{
-				onNetworkOffline();
-			}
+		private boolean isNetworkOffline() {
+			ConnectivityManager cm =
+					(ConnectivityManager) getView().getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+			NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+			return activeNetwork != null &&
+					activeNetwork.isConnectedOrConnecting();
 		}
 
 		@TargetApi(Build.VERSION_CODES.M)
@@ -546,13 +549,28 @@ Util.d("JS: %s", js);
 		m_activity.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				if(getLastOnlineUrl() == null) {
-					m_listener.getBaseURL();
-					return;
+				WebBackForwardList webBackForwardList = m_webView.copyBackForwardList();
+				int itemIndex = webBackForwardList.getCurrentIndex();
+				String backBrowserUrl = null;
+				if(itemIndex > 1) {
+					WebHistoryItem item = webBackForwardList.getItemAtIndex(itemIndex - 1);
+					if(item != null) {
+						backBrowserUrl = item.getUrl();
+					}
 				}
 
-				m_onlineUrls.remove(m_onlineUrls.size() - 1);
-				loadRemoteUrl(getLastOnlineUrl());
+				String backOnlineUrl = m_listener.getBaseURL();
+				if(!m_onlineUrls.isEmpty()) {
+					m_onlineUrls.remove(m_onlineUrls.size() - 1);
+					if (getLastOnlineUrl() != null) {
+						backOnlineUrl = getLastOnlineUrl();
+					}
+				}
+				if(backOnlineUrl.equals(backBrowserUrl)) {
+					m_webView.goBack();
+				} else {
+					loadRemoteUrl(backOnlineUrl);
+				}
 			}
 		});
 	}
@@ -625,5 +643,10 @@ Util.d("JS: %s", js);
 			return null;
 		}
 		return m_onlineUrls.get(m_onlineUrls.size() - 1);
+	}
+
+	public void reloadRemoteUrl() {
+		String urlString = ( getLastOnlineUrl() != null ? getLastOnlineUrl() : m_listener.getBaseURL());
+		loadRemoteUrl(urlString);
 	}
 }

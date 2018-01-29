@@ -234,6 +234,17 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	}
 
 	@Override
+	public void onPageError(String url) {
+		m_webView.loadLocalHtml("error.html");
+		new Handler().postDelayed(new Runnable() {
+			@Override
+			public void run() {
+				m_webView.reloadRemoteUrl();
+			}
+		}, 1000);
+	}
+
+	@Override
 	public String getBaseURL() {
 		return BuildConfig.API_BASE_URL;
 	}
@@ -430,7 +441,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 		catch (ActivityNotFoundException ex)
 		{
-			Util.toastShort(this, "이 파일을 처리할 수 있는 앱이 없는 것 같습니다.");
+			Util.toastShort(this, "이 파일을 미리 볼 수 있는 앱이 없습니다");
 		}
 	}
 
