@@ -44,8 +44,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	private ProgressBar m_prgsView;
 	private UfoWebView m_webView;
 
-	private int m_nPageFinishCount = 0;
-	private boolean m_isInitialWaitDone = false;
 	private long m_timeToHideWait;
 
 	private String m_urlToGoDelayed;
@@ -203,7 +201,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		else
 		{
 			m_urlToGoDelayed = null;
-			m_webView.resetLastOnlineUrl();
 
 			showWaitMark(true);
 			m_webView.loadRemoteUrl(url);
@@ -283,28 +280,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 	}
 
-	@Override
-	public void onPageLoadFinished(String url)
-	{
-		Util.d("onPageLoadFinished: %s", url);
-
-		if (m_isInitialWaitDone == false && isShowWait())
-		{
-			// 최초 mobile_app/start 페이지 방문 후 다음(두번째) 페이지 (보통 초기페이지) 로드 완료 시,
-			// 앱 구동때부터 보이던 WaitScreen 을 감춘다.
-			if (++m_nPageFinishCount >= 2 || BuildConfig.API_BASE_URL.equals(url))
-			{
-				Util.d("InitialWaitDone, clearNavHistory");
-				m_isInitialWaitDone = true;
-				m_webView.clearNavHistory();
-				showWaitMark(false);
-
-				// 이후 링크 클릭시 자동으로 로딩화면이 show/hide 될 수 있도록 함
-				//m_webView.setAutoWait(true); 안함
-			}
-		}
-	}
-
 	private String getAuthKey()
 	{
 		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this);
@@ -353,12 +328,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 		else if ("logout".equals(action))
 		{
-			if (m_isInitialWaitDone == false)
-			{
-				// FORM 전송 리퀘스트 횟수 차감
-				--m_nPageFinishCount;
-			}
-
 			// 로그아웃 요청이 오면 인증정보를 지우고, 푸시 registrationId 도 삭제 API 요청한다.
 			SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(CatanApp.getApp());
 			if (sp.contains(KEY_AUTHKEY))

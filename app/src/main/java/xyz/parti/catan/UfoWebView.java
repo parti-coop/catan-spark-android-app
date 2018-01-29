@@ -30,7 +30,9 @@ import android.webkit.WebViewClient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -39,7 +41,6 @@ public class UfoWebView
 {
 	public interface Listener
 	{
-		void onPageLoadFinished(String url);
 		void onPostAction(String action, JSONObject json) throws JSONException;
 	}
 
@@ -50,9 +51,9 @@ public class UfoWebView
 	private Activity m_activity;
 	private WebView m_webView;
 	private Listener m_listener;
-	private String m_lastOnlineUrl;
 	private boolean m_wasOffline;
 	private boolean m_isAutomaticShowHideWait;
+	private List<String> m_onlineUrls = new ArrayList<>();
 
 	private ValueCallback<Uri[]> m_uploadMultiValueCB;
 	private ValueCallback<Uri> m_uploadSingleValueCB;
@@ -255,14 +256,6 @@ public class UfoWebView
 		@Override
 		public void onPageFinished(WebView view, String url)
 		{
-			if (m_listener != null)
-				m_listener.onPageLoadFinished(url);
-
-			// 앱 시작때부터 offline 일 경우 m_lastOnlineUrl 가 null 일 수 있다.
-			// 캐쉬를 타서 shouldOverrideUrlLoading가 호출 안되면 여기서 세팅한다
-			if (m_lastOnlineUrl == null)
-				m_lastOnlineUrl = url;
-
 			// 자동 혹은 빠띠 사이트가 아니라면 타임아웃시 뺑글이 해제
 			if (m_isAutomaticShowHideWait || m_reIsMySite.matcher(url).lookingAt() == false)
 			{
@@ -300,8 +293,6 @@ public class UfoWebView
 			if (url.startsWith("http:") || url.startsWith("https:"))
 			{
 				showWait();
-
-				m_lastOnlineUrl = url;
 
 				if ( BuildConfig.IS_DEBUG) {
 					// 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
@@ -420,20 +411,9 @@ public class UfoWebView
 		return m_webView;
 	}
 
-	public void clearNavHistory()
-	{
-		m_webView.clearHistory();
-	}
-
 	public boolean canGoBack()
 	{
-		return m_webView.canGoBack();
-	}
-
-	public void goBack()
-	{
-		showWait();
-		m_webView.goBack();
+		return m_onlineUrls.size() > 1;
 	}
 
 	public void loadRemoteUrl(String url)
@@ -465,10 +445,9 @@ public class UfoWebView
 
 		m_wasOffline = false;
 
-		if (m_lastOnlineUrl != null)
+		if (getLastOnlineUrl() != null)
 		{
-			loadRemoteUrl(m_lastOnlineUrl);
-			m_lastOnlineUrl = null;
+			loadRemoteUrl(getLastOnlineUrl());
 		}
 		else Util.d("onNetworkReady but lastUrl is null");
 	}
@@ -584,6 +563,26 @@ Util.d("JS: %s", js);
 	}
 
 	@JavascriptInterface
+	public void goBack()
+	{
+		m_webView.post(new Runnable() {
+			@Override
+			public void run() {
+				showWait();
+				m_onlineUrls.remove(m_onlineUrls.size() - 1);
+				loadRemoteUrl(getLastOnlineUrl());
+			}
+		});
+	}
+
+	@JavascriptInterface
+	public void addOnlineUrl(String url) {
+		if (getLastOnlineUrl() == null || !getLastOnlineUrl().equals(url) ) {
+			m_onlineUrls.add(url);
+		}
+	}
+
+	@JavascriptInterface
 	public void post_(final String action, String jsonStr)
 	{
 		if (m_listener == null)
@@ -639,7 +638,10 @@ Util.d("JS: %s", js);
 		return headers;
 	}
 
-	public void resetLastOnlineUrl() {
-		m_lastOnlineUrl = null;
+	private String getLastOnlineUrl() {
+		if(m_onlineUrls.isEmpty()) {
+			return null;
+		}
+		return m_onlineUrls.get(m_onlineUrls.size() - 1);
 	}
 }
