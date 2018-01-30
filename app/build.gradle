@@ -39,7 +39,7 @@ android {
         }
         release {
             buildConfigField "boolean", var_is_debug, "false"
-            buildConfigField "String", var_api_base_url, "\"https://parti.xyz\""
+            buildConfigField "String", var_api_base_url, "\"https://parti.xyz/\""
             buildConfigField "String", var_api_base_url_regx, "\"^https:\\\\/\\\\/(.*\\\\.)?parti\\\\.xyz(\$|\\\\/)\""
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
