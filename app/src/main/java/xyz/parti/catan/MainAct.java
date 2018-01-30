@@ -205,14 +205,15 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	@Override
 	public void onPageStarted(String url) {
 		m_progressLayoutView.setVisibility(View.VISIBLE);
+
+		if (!MainAct.START_URL.equals(url) && m_delayedBundle != null) {
+			alertPushDialog(m_delayedBundle);
+			m_delayedBundle = null;
+		}
 	}
 
 	@Override
 	public void onPageFinished(String url) {
-		if (MainAct.START_URL.equals(url) && m_delayedBundle != null) {
-			alertPushDialog(m_delayedBundle);
-			m_delayedBundle = null;
-		}
 		m_progressLayoutView.setVisibility(View.GONE);
 	}
 
