@@ -217,6 +217,6 @@ public class Util
 	{
 		ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
 		NetworkInfo netInfo = cm.getActiveNetworkInfo();
-		return (netInfo != null && netInfo.isConnected());
+		return (netInfo != null && netInfo.isAvailable() && netInfo.isConnected());
 	}
 }

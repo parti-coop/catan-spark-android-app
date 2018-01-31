@@ -89,7 +89,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 
 		m_vwSplashScreen = findViewById(R.id.splash);
-		m_webView = new UfoWebView(this, findViewById(R.id.web), this);
+		m_webView = new UfoWebView(this, findViewById(R.id.web), this, MainAct.START_URL);
 		m_progressLayoutView = findViewById(R.id.progressLayout);
 		m_progressBarView = findViewById(R.id.progressBar);
 		m_progressBarView.setMax(100);
@@ -111,8 +111,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			m_delayedBundle = bun;
 		}
 
-		// 앱이 최초 로드할 웹서버의 주소입니다. 필요시 변경 가능합니다. 웹서버에도 변경은 필수!
-		m_webView.loadRemoteUrl(MainAct.START_URL);
+		m_webView.start();
 
 		// 1초간 스플래시 화면을 보여줍니다.
 		// iOS는 Launch스크린이 필수라서 대응하며 만든 기능입니다. 이 기능이 필요 없으면 연락주세요.
@@ -243,11 +242,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				m_webView.reloadRemoteUrl();
 			}
 		}, 1000);
-	}
-
-	@Override
-	public String getBaseURL() {
-		return BuildConfig.API_BASE_URL;
 	}
 
 	@Override

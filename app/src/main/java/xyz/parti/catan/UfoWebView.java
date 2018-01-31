@@ -15,6 +15,7 @@ import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
+import android.support.annotation.NonNull;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
@@ -49,7 +50,6 @@ public class UfoWebView
 		void onPageStarted(String url);
 		void onPageFinished(String url);
 		void onPageError(String failingUrl);
-		String getBaseURL();
 	}
 
 	public static final int REQCODE_CHOOSE_FILE = 1234;
@@ -60,6 +60,7 @@ public class UfoWebView
 	private WebView m_webView;
 	private Listener m_listener;
 	private boolean m_wasOffline;
+	private String m_startUrl;
 	private List<String> m_onlineUrls = new ArrayList<>();
 
 	private ValueCallback<Uri[]> m_uploadMultiValueCB;
@@ -254,15 +255,6 @@ public class UfoWebView
 			}
 		}
 
-		private boolean isNetworkOffline() {
-			ConnectivityManager cm =
-					(ConnectivityManager) getView().getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-
-			NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
-			return activeNetwork != null &&
-					activeNetwork.isConnectedOrConnecting();
-		}
-
 		@TargetApi(Build.VERSION_CODES.M)
 		@Override
 		public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error)
@@ -381,7 +373,7 @@ public class UfoWebView
 		}
 	};
 
-	public UfoWebView(Activity act, View webView, Listener lsnr)
+	public UfoWebView(Activity act, View webView, Listener lsnr, @NonNull String startUrl)
 	{
 		m_activity = act;
 		m_webView = (WebView) webView;
@@ -405,6 +397,7 @@ public class UfoWebView
 		m_webView.setWebChromeClient(m_chromeClient);
 		m_webView.addJavascriptInterface(this, "ufo");
 
+		m_startUrl = startUrl;
 		onStart(act);
 	}
 
@@ -413,6 +406,14 @@ public class UfoWebView
 		final IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
 		act.registerReceiver(m_connectivityReceiver, intentFilter);
+	}
+
+	public void start() {
+		if (Util.isNetworkOnline(m_webView.getContext())) {
+			loadRemoteUrl(m_startUrl);
+		} else {
+      onNetworkOffline();
+		}
 	}
 
 	public void onStop(Activity act)
@@ -456,11 +457,11 @@ public class UfoWebView
 
 		m_wasOffline = false;
 
-		if (getLastOnlineUrl() != null)
-		{
+		if (getLastOnlineUrl() != null) {
 			loadRemoteUrl(getLastOnlineUrl());
-		}
-		else Util.d("onNetworkReady but lastUrl is null");
+		} else {
+		  start();
+    }
 	}
 
 	public void handleUfoLink(String link)
@@ -559,7 +560,7 @@ Util.d("JS: %s", js);
 					}
 				}
 
-				String backOnlineUrl = m_listener.getBaseURL();
+				String backOnlineUrl = m_startUrl;
 				if(!m_onlineUrls.isEmpty()) {
 					m_onlineUrls.remove(m_onlineUrls.size() - 1);
 					if (getLastOnlineUrl() != null) {
@@ -646,7 +647,7 @@ Util.d("JS: %s", js);
 	}
 
 	public void reloadRemoteUrl() {
-		String urlString = ( getLastOnlineUrl() != null ? getLastOnlineUrl() : m_listener.getBaseURL());
+		String urlString = ( getLastOnlineUrl() != null ? getLastOnlineUrl() : m_startUrl);
 		loadRemoteUrl(urlString);
 	}
 }
