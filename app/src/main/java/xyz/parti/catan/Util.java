@@ -219,4 +219,8 @@ public class Util
 		NetworkInfo netInfo = cm.getActiveNetworkInfo();
 		return (netInfo != null && netInfo.isAvailable() && netInfo.isConnected());
 	}
+
+  public static boolean isForground() {
+		return !CatanApp.getApp().isBackground();
+  }
 }

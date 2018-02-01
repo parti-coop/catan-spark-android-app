@@ -111,7 +111,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			m_delayedBundle = bun;
 		}
 
-		m_webView.start();
+		m_webView.onStart(this);
 
 		// 1초간 스플래시 화면을 보여줍니다.
 		// iOS는 Launch스크린이 필수라서 대응하며 만든 기능입니다. 이 기능이 필요 없으면 연락주세요.
@@ -133,6 +133,15 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		if (m_webView != null)
 		{
 			m_webView.onStop(this);
+		}
+	}
+
+	@Override
+	protected void onResume() {
+		super.onResume();
+
+		if (m_webView != null) {
+			m_webView.onResume();
 		}
 	}
 
@@ -239,7 +248,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		new Handler().postDelayed(new Runnable() {
 			@Override
 			public void run() {
-				m_webView.reloadRemoteUrl();
+				m_webView.retryLastRemoteUrl();
 			}
 		}, 1000);
 	}

@@ -2,6 +2,10 @@ package xyz.parti.catan;
 
 import android.app.Activity;
 import android.app.Application;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 
 import com.crashlytics.android.Crashlytics;
@@ -15,6 +19,7 @@ public class CatanApp extends Application
 	private HttpMan m_httpMan;
 	private ApiMan m_apiMan;
 	private Activity m_curActivity;
+	private boolean m_isBackground = true;
 
 	@Override
 	public void onCreate()
@@ -33,11 +38,44 @@ public class CatanApp extends Application
 		}
 
 		registerActivityLifecycleCallbacks(m_alc);
+		listenForScreenTurningOff();
 
 		m_httpMan = new HttpMan();
 		m_apiMan = new ApiMan();
 
 		return true;
+	}
+
+	private void notifyForeground() {
+		// This is where you can notify listeners, handle session tracking, etc
+	}
+
+	private void notifyBackground() {
+		// This is where you can notify listeners, handle session tracking, etc
+	}
+
+	public boolean isBackground() {
+		return m_isBackground;
+	}
+
+	@Override
+	public void onTrimMemory(int level) {
+		super.onTrimMemory(level);
+		if (level == TRIM_MEMORY_UI_HIDDEN) {
+			m_isBackground = true;
+			notifyBackground();
+		}
+	}
+
+	private void listenForScreenTurningOff() {
+		IntentFilter screenStateFilter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+		registerReceiver(new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				m_isBackground = true;
+				notifyBackground();
+			}
+		}, screenStateFilter);
 	}
 
 	Application.ActivityLifecycleCallbacks m_alc = new Application.ActivityLifecycleCallbacks() {
@@ -56,6 +94,10 @@ public class CatanApp extends Application
 		@Override
 		public void onActivityResumed(Activity activity)
 		{
+			if (m_isBackground) {
+				m_isBackground = false;
+				notifyForeground();
+			}
 		}
 
 		@Override

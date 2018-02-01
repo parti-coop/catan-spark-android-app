@@ -11,10 +11,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.view.View;
 import android.webkit.JavascriptInterface;
@@ -59,7 +59,7 @@ public class UfoWebView
 	private Activity m_activity;
 	private WebView m_webView;
 	private Listener m_listener;
-	private boolean m_wasOffline;
+	private boolean m_wasOfflineShown;
 	private String m_startUrl;
 	private List<String> m_onlineUrls = new ArrayList<>();
 
@@ -226,52 +226,44 @@ public class UfoWebView
 
 	private WebViewClient m_webClient = new WebViewClient()
 	{
-/*
 		@Override
 		public void onPageStarted(WebView view, String url, Bitmap favicon)
 		{
-			super.onPageStarted(view, url, favicon);
-		}
-
-		public void onLoadResource (WebView view, String url)
-		{
-		}
-*/
-		@Override
-		public void onPageStarted(WebView view, String url, Bitmap favicon)
-		{
+      Util.d("onPageStarted(%s)", url);
 			m_listener.onPageStarted(url);
 			super.onPageStarted(view, url, favicon);
 		}
 
-		@SuppressWarnings("deprecation")
-		@Override
-		public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-			Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
-			if (Util.isNetworkOnline(MainAct.getInstance())) {
-				m_listener.onPageError(failingUrl);
-			} else {
-				onNetworkOffline();
-			}
-		}
-
-		@TargetApi(Build.VERSION_CODES.M)
-		@Override
-		public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error)
-		{
-			onReceivedError(view, error.getErrorCode(), error.getDescription().toString(), request.getUrl().toString());
-		}
-
-		private Pattern m_reIsMySite = Pattern.compile(BuildConfig.API_BASE_URL_REGX);
-
 		@Override
 		public void onPageFinished(WebView view, String url)
 		{
+      Util.d("onPageFinished(%s)", url);
 			m_listener.onPageFinished(url);
 			super.onPageFinished(view, url);
 		}
 
-		@Override
+    @SuppressWarnings("deprecation")
+    @Override
+    public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+      Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
+      if (failingUrl != null && !(failingUrl.startsWith("http:") || failingUrl.startsWith("https:"))) {
+        Util.d("onReceivedError(%d,%s, %s) ignore for none http(s)", errorCode, description, failingUrl);
+      }
+      if (Util.isNetworkOnline(MainAct.getInstance())) {
+        m_listener.onPageError(failingUrl);
+      } else {
+        onNetworkOffline();
+      }
+    }
+
+    @TargetApi(Build.VERSION_CODES.M)
+    @Override
+    public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error)
+    {
+      onReceivedError(view, error.getErrorCode(), error.getDescription().toString(), request.getUrl().toString());
+    }
+
+    @Override
 		public boolean shouldOverrideUrlLoading(WebView view, final String url)
 		{
 			Util.d("shouldOverrideUrlLoading: %s", url);
@@ -289,62 +281,22 @@ public class UfoWebView
 				return true;
 			}
 
-/*
-			if (url.startsWith("tel:"))
-			{
-				Intent itt = new Intent(Intent.ACTION_CALL, Uri.parse(url));
-				m_activity.startActivity(itt);
-				return true;
-			}
-*/
-
 			if (url.startsWith("http:") || url.startsWith("https:"))
 			{
-				if ( BuildConfig.IS_DEBUG) {
-					// 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
-					// 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
-					String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
-					if ( url.contains(GOOGLE_OAUTH_FOR_DEV_URL) ) {
-						view.loadUrl(url.replace("https://parti.dev/", BuildConfig.API_BASE_URL), UfoWebView.extraHttpHeaders());
-						return true;
-					}
-				}
-
-				if (url.contains(GOOGLE_OAUTH_START_URL))
-				{
-					// 구글 인증이 시작되었다.
-					// 가짜 User-Agent 사용을 시작한다.
-					view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
-					view.loadUrl(url, UfoWebView.extraHttpHeaders());
-					return true;
-				}
-				else if ( FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString()) )
-				{
-					// 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
-					if ( url.indexOf("https://accounts.google.com") < 0 ) {
-						// 구글 인증이 시작된 상태였다가
-						// 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
-						// 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
-						view.getSettings().setUserAgentString(null);   // set default
-						view.loadUrl(url, UfoWebView.extraHttpHeaders());
-						return true;
-					} else {
-						// 아직 구글로그인 중이다
-						view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
-						view.loadUrl(url, UfoWebView.extraHttpHeaders());
-						return true;
-					}
-				}
-
-				view.getSettings().setUserAgentString(null);   // set default
-				view.loadUrl(url, UfoWebView.extraHttpHeaders());
+				processRemoteUrl(view, url);
 				return true;
 			}
 
 			return false;
 		}
 
-		@Override
+    @TargetApi(Build.VERSION_CODES.N)
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+      return super.shouldOverrideUrlLoading(view, request.getUrl().toString());
+    }
+
+    @Override
 		public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error)
 		{
 			if(BuildConfig.IS_DEBUG) {
@@ -353,12 +305,6 @@ public class UfoWebView
 				super.onReceivedSslError(view, handler, error);
 			}
 		}
-
-		@TargetApi(Build.VERSION_CODES.N)
-		@Override
-		public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-			return super.shouldOverrideUrlLoading(view, request.getUrl().toString());
-		}
 	};
 
 	private BroadcastReceiver m_connectivityReceiver = new BroadcastReceiver()
@@ -366,10 +312,18 @@ public class UfoWebView
 		@Override
 		public void onReceive(final Context context, final Intent intent)
 		{
-			if (Util.isNetworkOnline(context))
-			{
-				onNetworkReady();
-			}
+      new Handler().postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          if (Util.isNetworkOnline(context)) {
+            Util.d("m_connectivityReceiver(onNetworkReady)");
+            onNetworkReady();
+          } else {
+            Util.d("m_connectivityReceiver(onNetworkOffline)");
+            onNetworkOffline();
+          }
+        }
+      }, 3000);
 		}
 	};
 
@@ -385,7 +339,7 @@ public class UfoWebView
 		webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
 		webSettings.setSupportMultipleWindows(true);
 
-		webSettings.setDefaultFontSize(16);
+		webSettings.setDefaultFontSize(18);
 		if (Build.VERSION.SDK_INT > Build.VERSION_CODES.ICE_CREAM_SANDWICH)
 			webSettings.setTextZoom(100);
 
@@ -398,33 +352,45 @@ public class UfoWebView
 		m_webView.addJavascriptInterface(this, "ufo");
 
 		m_startUrl = startUrl;
-		onStart(act);
 	}
 
-	public void onStart(Activity act)
-	{
-		final IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-		act.registerReceiver(m_connectivityReceiver, intentFilter);
-	}
-
-	public void start() {
-		if (Util.isNetworkOnline(m_webView.getContext())) {
-			loadRemoteUrl(m_startUrl);
-		} else {
-      onNetworkOffline();
-		}
-	}
+  public void onStart(Activity act) {
+    final IntentFilter intentFilter = new IntentFilter();
+    intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+    act.registerReceiver(m_connectivityReceiver, intentFilter);
+  }
 
 	public void onStop(Activity act)
 	{
 		act.unregisterReceiver(m_connectivityReceiver);
 	}
 
-	public WebView getView()
-	{
-		return m_webView;
-	}
+  public void onResume() {
+    if (!Util.isNetworkOnline(m_webView.getContext())) {
+      onNetworkOffline();
+      return;
+    }
+
+    if (m_wasOfflineShown) {
+      loadLocalHtml("reloading.html");
+      m_wasOfflineShown = false;
+      new Handler().postDelayed(new Runnable() {
+        @Override
+        public void run() {
+          loadFirstUrl();
+        }
+      }, 500);
+    } else {
+      loadFirstUrl();
+    }
+  }
+
+  private void loadFirstUrl() {
+    String lastOnlineUrl = getLastOnlineUrl(m_startUrl);
+    if( !lastOnlineUrl.equals(m_webView.getUrl()) ) {
+      loadRemoteUrl(lastOnlineUrl);
+    }
+  }
 
 	public boolean canGoBack()
 	{
@@ -434,7 +400,7 @@ public class UfoWebView
 	public void loadRemoteUrl(String url)
 	{
 		Util.d("loadRemoteUrl: %s", url);
-		m_webView.loadUrl(url, UfoWebView.extraHttpHeaders());
+		processRemoteUrl(m_webView, url);
 	}
 
 	public void loadLocalHtml(String htmlName)
@@ -446,22 +412,20 @@ public class UfoWebView
 
 	public void onNetworkOffline()
 	{
-		m_wasOffline = true;
-		loadLocalHtml("offline.html");
+	  if (m_wasOfflineShown) {
+      return;
+    }
+    m_wasOfflineShown = true;
+    loadLocalHtml("offline.html");
 	}
 
 	public void onNetworkReady()
-	{
-		if (!m_wasOffline)
-			return;
-
-		m_wasOffline = false;
-
-		if (getLastOnlineUrl() != null) {
-			loadRemoteUrl(getLastOnlineUrl());
-		} else {
-		  start();
+  {
+    if (!m_wasOfflineShown) {
+      return;
     }
+		m_wasOfflineShown = false;
+		loadRemoteUrl(getLastOnlineUrl(m_startUrl));
 	}
 
 	public void handleUfoLink(String link)
@@ -576,6 +540,17 @@ Util.d("JS: %s", js);
 		});
 	}
 
+  @JavascriptInterface
+  public void retryLastRemoteUrl() {
+    m_activity.runOnUiThread(new Runnable() {
+
+      @Override
+      public void run() {
+        loadRemoteUrl(getLastOnlineUrl(m_startUrl));
+      }
+    });
+  }
+
 	@JavascriptInterface
 	public void addOnlineUrl(String url) {
 		if (getLastOnlineUrl() == null || !getLastOnlineUrl().equals(url) ) {
@@ -631,6 +606,53 @@ Util.d("JS: %s", js);
 		return src.replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
 	}
 
+	protected void processRemoteUrl(WebView view, String url) {
+    Util.d("processRemoteUrl: %s", url);
+		if (!Util.isNetworkOnline(MainAct.getInstance())) {
+      onNetworkOffline();
+			return;
+		}
+
+		if ( BuildConfig.IS_DEBUG) {
+			// 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
+			// 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
+			String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
+			if ( url.contains(GOOGLE_OAUTH_FOR_DEV_URL) ) {
+				view.loadUrl(url.replace("https://parti.dev/", BuildConfig.API_BASE_URL), UfoWebView.extraHttpHeaders());
+				return;
+			}
+		}
+
+		if (url.contains(GOOGLE_OAUTH_START_URL))
+		{
+			// 구글 인증이 시작되었다.
+			// 가짜 User-Agent 사용을 시작한다.
+			view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+			view.loadUrl(url, UfoWebView.extraHttpHeaders());
+			return;
+		}
+		else if ( FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString()) )
+		{
+			// 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
+			if ( url.indexOf("https://accounts.google.com") < 0 ) {
+				// 구글 인증이 시작된 상태였다가
+				// 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
+				// 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
+				view.getSettings().setUserAgentString(null);   // set default
+				view.loadUrl(url, UfoWebView.extraHttpHeaders());
+				return;
+			} else {
+				// 아직 구글로그인 중이다
+				view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+				view.loadUrl(url, UfoWebView.extraHttpHeaders());
+				return;
+			}
+		}
+
+		view.getSettings().setUserAgentString(null);   // set default
+		view.loadUrl(url, UfoWebView.extraHttpHeaders());
+	}
+
 	public static Map<String, String> extraHttpHeaders() {
 		Map<String, String> headers = new HashMap<>();
 		headers.put("catan-agent", "catan-spark-android");
@@ -640,14 +662,13 @@ Util.d("JS: %s", js);
 	}
 
 	private String getLastOnlineUrl() {
-		if(m_onlineUrls.isEmpty()) {
-			return null;
-		}
-		return m_onlineUrls.get(m_onlineUrls.size() - 1);
+		return getLastOnlineUrl(null);
 	}
 
-	public void reloadRemoteUrl() {
-		String urlString = ( getLastOnlineUrl() != null ? getLastOnlineUrl() : m_startUrl);
-		loadRemoteUrl(urlString);
-	}
+  private String getLastOnlineUrl(String fallback) {
+    if(m_onlineUrls.isEmpty()) {
+      return fallback;
+    }
+    return m_onlineUrls.get(m_onlineUrls.size() - 1);
+  }
 }
