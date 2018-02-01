@@ -38,10 +38,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 {
 	//private static final String KEY_UID = "xUID";
 	private static final String KEY_AUTHKEY = "xAK";
-
 	public static final String PUSHARG_URL = "url";
-
-	public static final String START_URL = BuildConfig.API_BASE_URL + "mobile_app/start";
 
 	private View m_vwSplashScreen;
 	private UfoWebView m_webView;
@@ -89,7 +86,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 
 		m_vwSplashScreen = findViewById(R.id.splash);
-		m_webView = new UfoWebView(this, findViewById(R.id.web), this, MainAct.START_URL);
+		m_webView = new UfoWebView(this, findViewById(R.id.web), this);
 		m_progressLayoutView = findViewById(R.id.progressLayout);
 		m_progressBarView = findViewById(R.id.progressBar);
 		m_progressBarView.setMax(100);
@@ -214,7 +211,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	public void onPageStarted(String url) {
 		m_progressLayoutView.setVisibility(View.VISIBLE);
 
-		if (!MainAct.START_URL.equals(url) && m_delayedBundle != null) {
+		if (!m_webView.isStartUrl(url) && m_delayedBundle != null) {
 			alertPushDialog(m_delayedBundle);
 			m_delayedBundle = null;
 		}

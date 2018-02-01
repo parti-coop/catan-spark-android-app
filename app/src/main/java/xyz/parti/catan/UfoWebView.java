@@ -54,13 +54,14 @@ public class UfoWebView
 
 	public static final int REQCODE_CHOOSE_FILE = 1234;
 	private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A";
-	private static final String GOOGLE_OAUTH_START_URL = BuildConfig.API_BASE_URL + "users/auth/google_oauth2";
+  public static final String BASE_URL = BuildConfig.API_BASE_URL;
+	private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
+  public static final String START_URL = BASE_URL + "mobile_app/start";
 
 	private Activity m_activity;
 	private WebView m_webView;
 	private Listener m_listener;
 	private boolean m_wasOfflineShown;
-	private String m_startUrl;
 	private List<String> m_onlineUrls = new ArrayList<>();
 
 	private ValueCallback<Uri[]> m_uploadMultiValueCB;
@@ -327,7 +328,7 @@ public class UfoWebView
 		}
 	};
 
-	public UfoWebView(Activity act, View webView, Listener lsnr, @NonNull String startUrl)
+	public UfoWebView(Activity act, View webView, Listener lsnr)
 	{
 		m_activity = act;
 		m_webView = (WebView) webView;
@@ -350,9 +351,7 @@ public class UfoWebView
 		m_webView.setWebViewClient(m_webClient);
 		m_webView.setWebChromeClient(m_chromeClient);
 		m_webView.addJavascriptInterface(this, "ufo");
-
-		m_startUrl = startUrl;
-	}
+  }
 
   public void onStart(Activity act) {
     final IntentFilter intentFilter = new IntentFilter();
@@ -386,7 +385,7 @@ public class UfoWebView
   }
 
   private void loadFirstUrl() {
-    String lastOnlineUrl = getLastOnlineUrl(m_startUrl);
+    String lastOnlineUrl = getLastOnlineUrl(UfoWebView.START_URL);
     if( !lastOnlineUrl.equals(m_webView.getUrl()) ) {
       loadRemoteUrl(lastOnlineUrl);
     }
@@ -394,7 +393,7 @@ public class UfoWebView
 
 	public boolean canGoBack()
 	{
-		return m_onlineUrls.size() > 1;
+		return m_webView.getUrl() != null && !m_webView.getUrl().equals(UfoWebView.BASE_URL) && !m_webView.getUrl().equals(UfoWebView.START_URL);
 	}
 
 	public void loadRemoteUrl(String url)
@@ -425,7 +424,7 @@ public class UfoWebView
       return;
     }
 		m_wasOfflineShown = false;
-		loadRemoteUrl(getLastOnlineUrl(m_startUrl));
+		loadRemoteUrl(getLastOnlineUrl(UfoWebView.START_URL));
 	}
 
 	public void handleUfoLink(String link)
@@ -524,7 +523,7 @@ Util.d("JS: %s", js);
 					}
 				}
 
-				String backOnlineUrl = m_startUrl;
+				String backOnlineUrl = UfoWebView.BASE_URL;
 				if(!m_onlineUrls.isEmpty()) {
 					m_onlineUrls.remove(m_onlineUrls.size() - 1);
 					if (getLastOnlineUrl() != null) {
@@ -546,7 +545,7 @@ Util.d("JS: %s", js);
 
       @Override
       public void run() {
-        loadRemoteUrl(getLastOnlineUrl(m_startUrl));
+        loadRemoteUrl(getLastOnlineUrl(UfoWebView.START_URL));
       }
     });
   }
@@ -618,7 +617,7 @@ Util.d("JS: %s", js);
 			// 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
 			String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
 			if ( url.contains(GOOGLE_OAUTH_FOR_DEV_URL) ) {
-				view.loadUrl(url.replace("https://parti.dev/", BuildConfig.API_BASE_URL), UfoWebView.extraHttpHeaders());
+				view.loadUrl(url.replace("https://parti.dev/", UfoWebView.BASE_URL), UfoWebView.extraHttpHeaders());
 				return;
 			}
 		}
@@ -670,5 +669,9 @@ Util.d("JS: %s", js);
       return fallback;
     }
     return m_onlineUrls.get(m_onlineUrls.size() - 1);
+  }
+
+  public boolean isStartUrl(String url) {
+    return UfoWebView.START_URL.equals(url);
   }
 }
