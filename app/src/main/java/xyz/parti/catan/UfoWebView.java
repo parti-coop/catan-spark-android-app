@@ -655,7 +655,7 @@ Util.d("JS: %s", js);
 	public static Map<String, String> extraHttpHeaders() {
 		Map<String, String> headers = new HashMap<>();
 		headers.put("catan-agent", "catan-spark-android");
-		headers.put("catan-version", "1.0.0");
+		headers.put("catan-version", "2");
 
 		return headers;
 	}
