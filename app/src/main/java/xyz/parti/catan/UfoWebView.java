@@ -38,213 +38,213 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 
 public class UfoWebView
 {
-	public interface Listener
-	{
-		void onPostAction(String action, JSONObject json) throws JSONException;
-		void onProgressChange(int progress);
-		void onPageStarted(String url);
-		void onPageFinished(String url);
-		void onPageError(String failingUrl);
-	}
+  public interface Listener
+  {
+    void onPostAction(String action, JSONObject json) throws JSONException;
+    void onProgressChange(int progress);
+    void onPageStarted(String url);
+    void onPageFinished(String url);
+    void onPageError(String failingUrl);
+  }
 
-	static final int REQCODE_CHOOSE_FILE = 1234;
-	private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A";
+  static final int REQCODE_CHOOSE_FILE = 1234;
+  private static final String CATAN_USER_AGENT = " CatanSparkAndroid/2";
+  private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Linux; Android 6.0.1; SM-G920V Build/MMB29K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.98 Mobile Safari/537.36" + CATAN_USER_AGENT;
   private static final String BASE_URL = BuildConfig.API_BASE_URL;
-	private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
+  private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
   private static final String START_URL = BASE_URL + "mobile_app/start";
 
-	private Activity m_activity;
-	private WebView m_webView;
-	private Listener m_listener;
-	private boolean m_wasOfflineShown;
-	private List<String> m_onlineUrls = new ArrayList<>();
+  private Activity m_activity;
+  private WebView m_webView;
+  private Listener m_listener;
+  private boolean m_wasOfflineShown;
+  private List<String> m_onlineUrls = new ArrayList<>();
+  private String m_defaultUserAgent;
 
-	private ValueCallback<Uri[]> m_uploadMultiValueCB;
-	private ValueCallback<Uri> m_uploadSingleValueCB;
+  private ValueCallback<Uri[]> m_uploadMultiValueCB;
+  private ValueCallback<Uri> m_uploadSingleValueCB;
 
-	private WebChromeClient m_chromeClient = new WebChromeClient()
-	{
-		@Override
-		public boolean onJsAlert(WebView view, String url, String message, final android.webkit.JsResult result)
-		{
-			new AlertDialog.Builder(view.getContext())
-				.setTitle(R.string.app_name)
-				.setMessage(message)
-				.setPositiveButton(android.R.string.ok, new AlertDialog.OnClickListener() {
-					public void onClick(DialogInterface dialog, int which)
-					{
-						result.confirm();
-					}
-				})
-				.setCancelable(false)
-				.create()
-				.show();
+  private WebChromeClient m_chromeClient = new WebChromeClient()
+  {
+    @Override
+    public boolean onJsAlert(WebView view, String url, String message, final android.webkit.JsResult result)
+    {
+      new AlertDialog.Builder(view.getContext())
+        .setTitle(R.string.app_name)
+        .setMessage(message)
+        .setPositiveButton(android.R.string.ok, new AlertDialog.OnClickListener() {
+          public void onClick(DialogInterface dialog, int which)
+          {
+            result.confirm();
+          }
+        })
+        .setCancelable(false)
+        .create()
+        .show();
 
-			return true;
-		};
+      return true;
+    };
 
-		@Override
-		public boolean onJsConfirm(WebView view, String url, String message, final JsResult result)
-		{
-			new AlertDialog.Builder(view.getContext())
-				.setMessage(message)
-				.setPositiveButton(android.R.string.yes,
-					new AlertDialog.OnClickListener(){
-						public void onClick(DialogInterface dialog, int which) {
-							result.confirm();
-						}
-					})
-				.setNegativeButton(android.R.string.no,
-					new AlertDialog.OnClickListener(){
-						public void onClick(DialogInterface dialog, int which) {
-							result.cancel();
-						}
-					})
-				.setCancelable(false)
-				.create()
-				.show();
-			return true;
-		}
+    @Override
+    public boolean onJsConfirm(WebView view, String url, String message, final JsResult result)
+    {
+      new AlertDialog.Builder(view.getContext())
+        .setMessage(message)
+        .setPositiveButton(android.R.string.yes,
+          new AlertDialog.OnClickListener(){
+            public void onClick(DialogInterface dialog, int which) {
+              result.confirm();
+            }
+          })
+        .setNegativeButton(android.R.string.no,
+          new AlertDialog.OnClickListener(){
+            public void onClick(DialogInterface dialog, int which) {
+              result.cancel();
+            }
+          })
+        .setCancelable(false)
+        .create()
+        .show();
+      return true;
+    }
 
-		public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result)
-		{
-			return false;
-		}
+    public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result)
+    {
+      return false;
+    }
 
-		@Override
-		public boolean onCreateWindow(WebView view, boolean dialog, boolean userGesture, android.os.Message resultMsg) {
-			final Context context = view.getContext();
-			final WebView dummyWebView = new WebView(context); // pass a context
-			dummyWebView.setWebViewClient(new WebViewClient() {
-				@Override
-				public void onPageStarted(WebView view, String url,
-										  Bitmap favicon) {
-					handleLinksOnCreateWindow(context, url); // you can get your target url here
-					dummyWebView.stopLoading();
-					dummyWebView.destroy();
-				}
-			});
-			WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
-			transport.setWebView(dummyWebView);
-			resultMsg.sendToTarget();
-			return true;
-		}
+    @Override
+    public boolean onCreateWindow(WebView view, boolean dialog, boolean userGesture, android.os.Message resultMsg) {
+      final Context context = view.getContext();
+      final WebView dummyWebView = new WebView(context); // pass a context
+      dummyWebView.setWebViewClient(new WebViewClient() {
+        @Override
+        public void onPageStarted(WebView view, String url,
+                      Bitmap favicon) {
+          handleLinksOnCreateWindow(context, url); // you can get your target url here
+          dummyWebView.stopLoading();
+          dummyWebView.destroy();
+        }
+      });
+      WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+      transport.setWebView(dummyWebView);
+      resultMsg.sendToTarget();
+      return true;
+    }
 
-		private void handleLinksOnCreateWindow(Context context, String url) {
-			Util.d("handleLinksOnCreateWindow: %s", url);
+    private void handleLinksOnCreateWindow(Context context, String url) {
+      Util.d("handleLinksOnCreateWindow: %s", url);
 
-			if (Pattern.compile(BuildConfig.API_BASE_URL_REGX).matcher(url).lookingAt()) {
-				loadRemoteUrl(url);
-			} else {
-				Util.startWebBrowser(context, url);
-			}
-		}
+      if (Pattern.compile(BuildConfig.API_BASE_URL_REGX).matcher(url).lookingAt()) {
+        loadRemoteUrl(url);
+      } else {
+        Util.startWebBrowser(context, url);
+      }
+    }
 
-		private boolean startFileChooser(ValueCallback<Uri> single, ValueCallback<Uri[]> multi, Intent itt)
-		{
-			m_uploadSingleValueCB = single;
-			m_uploadMultiValueCB = multi;
+    private boolean startFileChooser(ValueCallback<Uri> single, ValueCallback<Uri[]> multi, Intent itt)
+    {
+      m_uploadSingleValueCB = single;
+      m_uploadMultiValueCB = multi;
 
-			try
-			{
-				m_activity.startActivityForResult(itt, REQCODE_CHOOSE_FILE);
-			}
-			catch (ActivityNotFoundException e)
-			{
-				m_uploadSingleValueCB = null;
-				m_uploadMultiValueCB = null;
-				Util.toastShort(m_activity, "Cannot open file chooser");
-				return false;
-			}
+      try
+      {
+        m_activity.startActivityForResult(itt, REQCODE_CHOOSE_FILE);
+      }
+      catch (ActivityNotFoundException e)
+      {
+        m_uploadSingleValueCB = null;
+        m_uploadMultiValueCB = null;
+        Util.toastShort(m_activity, "Cannot open file chooser");
+        return false;
+      }
 
-			return true;
-		}
+      return true;
+    }
 
-		@Override
-		@TargetApi(Build.VERSION_CODES.LOLLIPOP)
-		public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams)
-		{
-			if (m_uploadMultiValueCB != null)
-			{
-				m_uploadMultiValueCB.onReceiveValue(null);
-			}
+    @Override
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams)
+    {
+      if (m_uploadMultiValueCB != null)
+      {
+        m_uploadMultiValueCB.onReceiveValue(null);
+      }
 
-			return startFileChooser(null, filePathCallback, fileChooserParams.createIntent());
-		}
+      return startFileChooser(null, filePathCallback, fileChooserParams.createIntent());
+    }
 
-		public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture)
-		{
-			openFileChooser(uploadMsg, acceptType);
-		}
+    public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture)
+    {
+      openFileChooser(uploadMsg, acceptType);
+    }
 
-		public void openFileChooser(ValueCallback uploadMsg, String acceptType)
-		{
-			Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-			intent.addCategory(Intent.CATEGORY_OPENABLE);
-			intent.setType(acceptType);
+    public void openFileChooser(ValueCallback uploadMsg, String acceptType)
+    {
+      Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+      intent.addCategory(Intent.CATEGORY_OPENABLE);
+      intent.setType(acceptType);
 
-			startFileChooser(uploadMsg, null, Intent.createChooser(intent, "File Browser"));
-		}
+      startFileChooser(uploadMsg, null, Intent.createChooser(intent, "File Browser"));
+    }
 
-		public void openFileChooser(ValueCallback<Uri> uploadMsg)
-		{
-			openFileChooser(uploadMsg, "image/*");
-		}
+    public void openFileChooser(ValueCallback<Uri> uploadMsg)
+    {
+      openFileChooser(uploadMsg, "image/*");
+    }
 
-		@Override
-		public void onProgressChanged(WebView view, int newProgress) {
-			Util.d("onProgressChanged %d", newProgress);
-			m_listener.onProgressChange(newProgress);
-			super.onProgressChanged(view, newProgress);
-		}
-	};
+    @Override
+    public void onProgressChanged(WebView view, int newProgress) {
+      Util.d("onProgressChanged %d", newProgress);
+      m_listener.onProgressChange(newProgress);
+      super.onProgressChanged(view, newProgress);
+    }
+  };
 
-	public void onFileChooseResult(int resultCode, Intent intent)
-	{
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-		{
-			if (m_uploadMultiValueCB != null)
-			{
-				m_uploadMultiValueCB.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
-				m_uploadMultiValueCB = null;
-			}
-		}
-		else
-		{
-			if (m_uploadSingleValueCB != null)
-			{
-				Uri result = intent == null || resultCode != Activity.RESULT_OK ? null : intent.getData();
-				m_uploadSingleValueCB.onReceiveValue(result);
-				m_uploadSingleValueCB = null;
-			}
-		}
-	}
+  public void onFileChooseResult(int resultCode, Intent intent)
+  {
+    if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+    {
+      if (m_uploadMultiValueCB != null)
+      {
+        m_uploadMultiValueCB.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
+        m_uploadMultiValueCB = null;
+      }
+    }
+    else
+    {
+      if (m_uploadSingleValueCB != null)
+      {
+        Uri result = intent == null || resultCode != Activity.RESULT_OK ? null : intent.getData();
+        m_uploadSingleValueCB.onReceiveValue(result);
+        m_uploadSingleValueCB = null;
+      }
+    }
+  }
 
-	private WebViewClient m_webClient = new WebViewClient()
-	{
-		@Override
-		public void onPageStarted(WebView view, String url, Bitmap favicon)
-		{
+  private WebViewClient m_webClient = new WebViewClient()
+  {
+    @Override
+    public void onPageStarted(WebView view, String url, Bitmap favicon)
+    {
       Util.d("onPageStarted(%s)", url);
-			m_listener.onPageStarted(url);
-			super.onPageStarted(view, url, favicon);
-		}
+      m_listener.onPageStarted(url);
+      super.onPageStarted(view, url, favicon);
+    }
 
-		@Override
-		public void onPageFinished(WebView view, String url)
-		{
+    @Override
+    public void onPageFinished(WebView view, String url)
+    {
       Util.d("onPageFinished(%s)", url);
-			m_listener.onPageFinished(url);
-			super.onPageFinished(view, url);
-		}
+      m_listener.onPageFinished(url);
+      super.onPageFinished(view, url);
+    }
 
     @SuppressWarnings("deprecation")
     @Override
@@ -267,32 +267,35 @@ public class UfoWebView
       onReceivedError(view, error.getErrorCode(), error.getDescription().toString(), request.getUrl().toString());
     }
 
+    /**
+     * @return True if the host application wants to leave the current WebView and handle the url itself, otherwise return false.
+     */
     @Override
-		public boolean shouldOverrideUrlLoading(WebView view, final String url)
-		{
-			Util.d("shouldOverrideUrlLoading: %s", url);
+    public boolean shouldOverrideUrlLoading(WebView view, final String url)
+    {
+      Util.d("shouldOverrideUrlLoading: %s", url);
 
-			if (url.startsWith("ufo"))
-			{
-				handleUfoLink(url.substring(4));
-				return true;
-			}
+      if (url.startsWith("ufo"))
+      {
+        handleUfoLink(url.substring(4));
+        return true;
+      }
 
-			if (url.startsWith("mailto:"))
-			{
-				Intent itt = new Intent(Intent.ACTION_SENDTO, Uri.parse(url));
-				m_activity.startActivity(itt);
-				return true;
-			}
+      if (url.startsWith("mailto:"))
+      {
+        Intent itt = new Intent(Intent.ACTION_SENDTO, Uri.parse(url));
+        m_activity.startActivity(itt);
+        return true;
+      }
 
-			if (url.startsWith("http:") || url.startsWith("https:"))
-			{
-				processRemoteUrl(view, url);
-				return true;
-			}
+      if (url.startsWith("http:") || url.startsWith("https:"))
+      {
+        return shouldOverrideRemoteUrlLoading(view, url);
+      }
 
-			return false;
-		}
+      // 해당되는 경우가 없으므로 계속 진행한다
+      return false;
+    }
 
     @TargetApi(Build.VERSION_CODES.N)
     @Override
@@ -301,21 +304,21 @@ public class UfoWebView
     }
 
     @Override
-		public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error)
-		{
-			if(BuildConfig.IS_DEBUG) {
-				handler.proceed();
-			} else {
-				super.onReceivedSslError(view, handler, error);
-			}
-		}
-	};
+    public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error)
+    {
+      if(BuildConfig.IS_DEBUG) {
+        handler.proceed();
+      } else {
+        super.onReceivedSslError(view, handler, error);
+      }
+    }
+  };
 
-	private BroadcastReceiver m_connectivityReceiver = new BroadcastReceiver()
-	{
-		@Override
-		public void onReceive(final Context context, final Intent intent)
-		{
+  private BroadcastReceiver m_connectivityReceiver = new BroadcastReceiver()
+  {
+    @Override
+    public void onReceive(final Context context, final Intent intent)
+    {
       new Handler().postDelayed(new Runnable() {
         @Override
         public void run() {
@@ -328,32 +331,35 @@ public class UfoWebView
           }
         }
       }, 3000);
-		}
-	};
+    }
+  };
 
   public UfoWebView(Activity act, View webView, Listener lsnr)
-	{
-		m_activity = act;
-		m_webView = (WebView) webView;
-		m_listener = lsnr;
+  {
+    m_activity = act;
+    m_webView = (WebView) webView;
+    m_listener = lsnr;
 
-		WebSettings webSettings = m_webView.getSettings();
-		webSettings.setSaveFormData(false);
-		webSettings.setJavaScriptEnabled(true);
-		webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
-		webSettings.setSupportMultipleWindows(true);
+    WebSettings webSettings = m_webView.getSettings();
+    webSettings.setSaveFormData(false);
+    webSettings.setJavaScriptEnabled(true);
+    webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+    webSettings.setSupportMultipleWindows(true);
+    String userAgent = webSettings.getUserAgentString();
+    m_defaultUserAgent = userAgent + CATAN_USER_AGENT;
+    webSettings.setUserAgentString(m_defaultUserAgent);
 
-		webSettings.setDefaultFontSize(18);
-		if (Build.VERSION.SDK_INT > Build.VERSION_CODES.ICE_CREAM_SANDWICH)
-			webSettings.setTextZoom(100);
+    webSettings.setDefaultFontSize(18);
+    if (Build.VERSION.SDK_INT > Build.VERSION_CODES.ICE_CREAM_SANDWICH)
+      webSettings.setTextZoom(100);
 
-		webSettings.setAppCacheEnabled(!BuildConfig.IS_DEBUG);
-		webSettings.setCacheMode(BuildConfig.IS_DEBUG ? WebSettings.LOAD_NO_CACHE : WebSettings.LOAD_DEFAULT);
+    webSettings.setAppCacheEnabled(!BuildConfig.IS_DEBUG);
+    webSettings.setCacheMode(BuildConfig.IS_DEBUG ? WebSettings.LOAD_NO_CACHE : WebSettings.LOAD_DEFAULT);
 
-		m_webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-		m_webView.setWebViewClient(m_webClient);
-		m_webView.setWebChromeClient(m_chromeClient);
-		m_webView.addJavascriptInterface(this, "ufo");
+    m_webView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+    m_webView.setWebViewClient(m_webClient);
+    m_webView.setWebChromeClient(m_chromeClient);
+    m_webView.addJavascriptInterface(this, "ufo");
   }
 
   public void onStart(Activity act, String afterStartUrl) {
@@ -366,10 +372,10 @@ public class UfoWebView
     onBootstrap(startUrl);
   }
 
-	public void onStop(Activity act)
-	{
-		act.unregisterReceiver(m_connectivityReceiver);
-	}
+  public void onStop(Activity act)
+  {
+    act.unregisterReceiver(m_connectivityReceiver);
+  }
 
   public void onBootstrap(String url) {
     if (!Util.isNetworkOnline(m_webView.getContext())) {
@@ -388,18 +394,20 @@ public class UfoWebView
     act.registerReceiver(m_connectivityReceiver, intentFilter);
   }
 
-	public boolean canGoBack()
-	{
-		return m_webView.getUrl() != null
+  public boolean canGoBack()
+  {
+    return m_webView.getUrl() != null
             && !m_webView.getUrl().equals(UfoWebView.BASE_URL)
             && !isStartUrl(m_webView.getUrl());
-	}
+  }
 
-	public void loadRemoteUrl(String url)
-	{
-		Util.d("loadRemoteUrl: %s", url);
-		processRemoteUrl(m_webView, url);
-	}
+  public void loadRemoteUrl(String url)
+  {
+    Util.d("loadRemoteUrl: %s", url);
+    if ( !shouldOverrideRemoteUrlLoading(m_webView, url) ) {
+      m_webView.loadUrl(url);
+    }
+  }
 
   public void loadRemoteUrlIfNew(String url)
   {
@@ -409,140 +417,140 @@ public class UfoWebView
     loadRemoteUrl(url);
   }
 
-	public void loadLocalHtml(String htmlName)
-	{
-		Util.d("loadLocalHtml: %s", htmlName);
-		String url = "file:///android_asset/" + htmlName;
-		m_webView.loadUrl(url);
-	}
+  public void loadLocalHtml(String htmlName)
+  {
+    Util.d("loadLocalHtml: %s", htmlName);
+    String url = "file:///android_asset/" + htmlName;
+    m_webView.loadUrl(url);
+  }
 
-	public void onNetworkOffline()
-	{
-	  if (m_wasOfflineShown) {
+  public void onNetworkOffline()
+  {
+    if (m_wasOfflineShown) {
       return;
     }
     m_wasOfflineShown = true;
     loadLocalHtml("offline.html");
-	}
+  }
 
-	public void onNetworkReady()
+  public void onNetworkReady()
   {
     if (!m_wasOfflineShown) {
       return;
     }
-		m_wasOfflineShown = false;
-		loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
-	}
+    m_wasOfflineShown = false;
+    loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
+  }
 
-	public void handleUfoLink(String link)
-	{
-		String action, param;
+  public void handleUfoLink(String link)
+  {
+    String action, param;
 
-		int slash = link.indexOf('/');
-		if (slash > 0)
-		{
-			action = link.substring(0, slash);
-			param = link.substring(slash +1);
-		}
-		else
-		{
-			action = link;
-			param = null;
-		}
+    int slash = link.indexOf('/');
+    if (slash > 0)
+    {
+      action = link.substring(0, slash);
+      param = link.substring(slash +1);
+    }
+    else
+    {
+      action = link;
+      param = null;
+    }
 
-		if ("post".equalsIgnoreCase(action))
-		{
-			post_(param, null);
-		}
-		else if ("fork".equalsIgnoreCase(action))
-		{
-			Util.d("fork: %s", param);
-			Util.startWebBrowser(MainAct.getInstance(), param);
-		}
-		else if ("eval".equalsIgnoreCase(action))
-		{
-			if (param != null)
-			{
-				evalJs(param);
-			}
-		}
-		else
-		{
-			Util.e("Unhandled action: %s(%s)", action, param);
-		}
-	}
+    if ("post".equalsIgnoreCase(action))
+    {
+      post_(param, null);
+    }
+    else if ("fork".equalsIgnoreCase(action))
+    {
+      Util.d("fork: %s", param);
+      Util.startWebBrowser(MainAct.getInstance(), param);
+    }
+    else if ("eval".equalsIgnoreCase(action))
+    {
+      if (param != null)
+      {
+        evalJs(param);
+      }
+    }
+    else
+    {
+      Util.e("Unhandled action: %s(%s)", action, param);
+    }
+  }
 
-	public void evalJs(String format, Object ... args)
-	{
-		String js = args.length == 0 ? format : String.format(format, args);
+  public void evalJs(String format, Object ... args)
+  {
+    String js = args.length == 0 ? format : String.format(format, args);
 Util.d("JS: %s", js);
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
-		{
-			m_webView.evaluateJavascript(js, null);
-		}
-		else
-		{
-			m_webView.loadUrl("javascript:"+js);
-		}
-	}
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+    {
+      m_webView.evaluateJavascript(js, null);
+    }
+    else
+    {
+      m_webView.loadUrl("javascript:"+js);
+    }
+  }
 
-	@JavascriptInterface
-	public void alert(final String msg)
-	{
-		m_activity.runOnUiThread(new Runnable()
-		{
-			public void run()
-			{
-				new AlertDialog.Builder(m_activity)
-					.setTitle(R.string.app_name)
-					.setMessage(msg)
-					.setPositiveButton(android.R.string.ok, null)
-					.setCancelable(false)
-					.create()
-					.show();
-			}
-		});
-	}
+  @JavascriptInterface
+  public void alert(final String msg)
+  {
+    m_activity.runOnUiThread(new Runnable()
+    {
+      public void run()
+      {
+        new AlertDialog.Builder(m_activity)
+          .setTitle(R.string.app_name)
+          .setMessage(msg)
+          .setPositiveButton(android.R.string.ok, null)
+          .setCancelable(false)
+          .create()
+          .show();
+      }
+    });
+  }
 
-	@JavascriptInterface
-	public void forkPage(String url)
-	{
-		if (url.startsWith("ufo:fork/"))
-			url = url.substring(9);
+  @JavascriptInterface
+  public void forkPage(String url)
+  {
+    if (url.startsWith("ufo:fork/"))
+      url = url.substring(9);
 
-		Util.d("forkPage: %s", url);
-		Util.startWebBrowser(MainAct.getInstance(), url);
-	}
+    Util.d("forkPage: %s", url);
+    Util.startWebBrowser(MainAct.getInstance(), url);
+  }
 
-	@JavascriptInterface
-	public void goBack()
-	{
-		m_activity.runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				WebBackForwardList webBackForwardList = m_webView.copyBackForwardList();
-				int itemIndex = webBackForwardList.getCurrentIndex();
-				String backBrowserUrl = null;
-				if(itemIndex > 1) {
-					WebHistoryItem item = webBackForwardList.getItemAtIndex(itemIndex - 1);
-					if(item != null) {
-						backBrowserUrl = item.getUrl();
-					}
-				}
+  @JavascriptInterface
+  public void goBack()
+  {
+    m_activity.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        WebBackForwardList webBackForwardList = m_webView.copyBackForwardList();
+        int itemIndex = webBackForwardList.getCurrentIndex();
+        String backBrowserUrl = null;
+        if(itemIndex > 1) {
+          WebHistoryItem item = webBackForwardList.getItemAtIndex(itemIndex - 1);
+          if(item != null) {
+            backBrowserUrl = item.getUrl();
+          }
+        }
 
-				if(!m_onlineUrls.isEmpty()) {
-					m_onlineUrls.remove(m_onlineUrls.size() - 1);
-				}
+        if(!m_onlineUrls.isEmpty()) {
+          m_onlineUrls.remove(m_onlineUrls.size() - 1);
+        }
         String backOnlineUrl = getLastOnlineUrl(UfoWebView.BASE_URL);
 
-				if(backOnlineUrl.equals(backBrowserUrl)) {
-					m_webView.goBack();
-				} else {
-					loadRemoteUrl(backOnlineUrl);
-				}
-			}
-		});
-	}
+        if(backOnlineUrl.equals(backBrowserUrl)) {
+          m_webView.goBack();
+        } else {
+          loadRemoteUrl(backOnlineUrl);
+        }
+      }
+    });
+  }
 
   @JavascriptInterface
   public void retryLastRemoteUrl() {
@@ -555,119 +563,109 @@ Util.d("JS: %s", js);
     });
   }
 
-	@JavascriptInterface
-	public void addOnlineUrl(String url) {
-		if (url != null && !url.equals(getLastOnlineUrl()) ) {
-			m_onlineUrls.add(url);
-		}
-	}
+  @JavascriptInterface
+  public void addOnlineUrl(String url) {
+    if (url != null && !url.equals(getLastOnlineUrl()) ) {
+      m_onlineUrls.add(url);
+    }
+  }
 
-	@JavascriptInterface
-	public void post_(final String action, String jsonStr)
-	{
-		if (m_listener == null)
-		{
-			Util.e("ActionListener is null, ignored: %s(%s)", action, jsonStr);
-			return;
-		}
+  @JavascriptInterface
+  public void post_(final String action, String jsonStr)
+  {
+    if (m_listener == null)
+    {
+      Util.e("ActionListener is null, ignored: %s(%s)", action, jsonStr);
+      return;
+    }
 
-		JSONObject _json = null;
-		if (jsonStr != null && !jsonStr.equals("undefined"))
-		{
-			try
-			{
-				_json = new JSONObject(jsonStr);
-			}
-			catch (JSONException e)
-			{
-				Util.e("JSON parse failed: '%s'", jsonStr);
-			}
-		}
+    JSONObject _json = null;
+    if (jsonStr != null && !jsonStr.equals("undefined"))
+    {
+      try
+      {
+        _json = new JSONObject(jsonStr);
+      }
+      catch (JSONException e)
+      {
+        Util.e("JSON parse failed: '%s'", jsonStr);
+      }
+    }
 
-		final JSONObject json = _json;
-		m_activity.runOnUiThread(new Runnable()
-		{
-			public void run()
-			{
-				try
-				{
-					m_listener.onPostAction(action, json);
-				}
-				catch (JSONException e)
-				{
-					e.printStackTrace();
-					Util.e("handleAction(%s) JSON(%s) ex: %s", action, json, e.getMessage());
-				}
-			}
-		});
-	}
+    final JSONObject json = _json;
+    m_activity.runOnUiThread(new Runnable()
+    {
+      public void run()
+      {
+        try
+        {
+          m_listener.onPostAction(action, json);
+        }
+        catch (JSONException e)
+        {
+          e.printStackTrace();
+          Util.e("handleAction(%s) JSON(%s) ex: %s", action, json, e.getMessage());
+        }
+      }
+    });
+  }
 
-	public static String escapeJsQuoteString(String src)
-	{
-		if (src == null)
-			return "";
+  public static String escapeJsQuoteString(String src)
+  {
+    if (src == null)
+      return "";
 
-		return src.replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
-	}
+    return src.replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r");
+  }
 
-	protected void processRemoteUrl(WebView view, String url) {
-    Util.d("processRemoteUrl: %s", url);
-		if (!Util.isNetworkOnline(MainAct.getInstance())) {
+  /**
+   * @return True if the host application wants to leave the current WebView and handle the url itself, otherwise return false.
+   */
+  protected boolean shouldOverrideRemoteUrlLoading(WebView view, String url) {
+    Util.d("shouldOverrideRemoteUrlLoading: %s", url);
+    if (!Util.isNetworkOnline(MainAct.getInstance())) {
       onNetworkOffline();
-			return;
-		}
+      return true;
+    }
 
-		if ( BuildConfig.IS_DEBUG) {
-			// 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
-			// 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
-			String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
-			if ( url.contains(GOOGLE_OAUTH_FOR_DEV_URL) ) {
-				view.loadUrl(url.replace("https://parti.dev/", UfoWebView.BASE_URL), UfoWebView.extraHttpHeaders());
-				return;
-			}
-		}
+    if (BuildConfig.IS_DEBUG) {
+      // 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
+      // 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
+      String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
+      if ( url.startsWith(GOOGLE_OAUTH_FOR_DEV_URL) ) {
+        view.getSettings().setUserAgentString(m_defaultUserAgent);
+        view.loadUrl(url.replace("https://parti.dev/", UfoWebView.BASE_URL));
+        return true;
+      }
+    }
 
-		if (url.contains(GOOGLE_OAUTH_START_URL))
-		{
-			// 구글 인증이 시작되었다.
-			// 가짜 User-Agent 사용을 시작한다.
-			view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
-			view.loadUrl(url, UfoWebView.extraHttpHeaders());
-			return;
-		}
-		else if ( FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString()) )
-		{
-			// 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
-			if ( url.indexOf("https://accounts.google.com") < 0 ) {
-				// 구글 인증이 시작된 상태였다가
-				// 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
-				// 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
-				view.getSettings().setUserAgentString(null);   // set default
-				view.loadUrl(url, UfoWebView.extraHttpHeaders());
-				return;
-			} else {
-				// 아직 구글로그인 중이다
-				view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
-				view.loadUrl(url, UfoWebView.extraHttpHeaders());
-				return;
-			}
-		}
+    if (url.startsWith(GOOGLE_OAUTH_START_URL)) {
+      // 구글 인증이 시작되었다.
+      // 가짜 User-Agent 사용을 시작한다.
+      view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+      return false;
+    } else if (FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString())) {
+      // 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
+      if ( url.startsWith("https://accounts.google.com") ) {
+        // 구글 인증이 시작된 상태였다가
+        // 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
+        // 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
+        view.getSettings().setUserAgentString(m_defaultUserAgent);   // set default
+        return false;
+      } else {
+        // 아직 구글로그인 중이다
+        view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+        return false;
+      }
+    }
 
-		view.getSettings().setUserAgentString(null);   // set default
-		view.loadUrl(url, UfoWebView.extraHttpHeaders());
-	}
+    view.getSettings().setUserAgentString(m_defaultUserAgent);   // set default
+    return false;
+  }
 
-	public static Map<String, String> extraHttpHeaders() {
-		Map<String, String> headers = new HashMap<>();
-		headers.put("catan-agent", "catan-spark-android");
-		headers.put("catan-version", "2");
-
-		return headers;
-	}
-
-	private String getLastOnlineUrl() {
-		return getLastOnlineUrl(null);
-	}
+  private String getLastOnlineUrl() {
+    return getLastOnlineUrl(null);
+  }
 
   private String getLastOnlineUrl(String fallback) {
     if(m_onlineUrls.isEmpty()) {
@@ -677,7 +675,7 @@ Util.d("JS: %s", js);
   }
 
   public boolean isStartUrl(String url) {
-	  if (url == null) return false;
+    if (url == null) return false;
     try {
       if (url.startsWith(UfoWebView.START_URL) && new URL(UfoWebView.START_URL).getPath() == new URL(url).getPath()) {
         return true;
