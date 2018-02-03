@@ -44,9 +44,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	private UfoWebView m_webView;
 	private FrameLayout m_progressLayoutView;
 	private ProgressBar m_progressBarView;
-
-	private Bundle m_delayedBundle;
-
 	private ProgressDialog m_downloadPrgsDlg;
 
 	private static MainAct s_this;
@@ -70,7 +67,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 			return;
 		}
 
-		// 개발중일때 타겟 서버를 바꾸는 헬퍼입니다. 디버그로 릴리즈서버 바라볼 때는 주석처리해주세요.
 		if (BuildConfig.IS_DEBUG) CatanApp.getApiManager().setDevMode();
 	}
 
@@ -81,7 +77,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 		if (m_webView != null)
 		{
-			m_webView.onStart(this);
+			m_webView.onStart(this, parsePushBundleUrl(getIntent().getExtras()));
 			return;
 		}
 
@@ -102,13 +98,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 				channelName, NotificationManager.IMPORTANCE_LOW));
 		}
 
-		Bundle bun = getIntent().getExtras();
-		if (bun != null && isPushBundle(bun))
-		{
-			m_delayedBundle = bun;
-		}
-
-		m_webView.onStart(this);
+		m_webView.onStart(this, parsePushBundleUrl(getIntent().getExtras()));
 
 		// 1초간 스플래시 화면을 보여줍니다.
 		// iOS는 Launch스크린이 필수라서 대응하며 만든 기능입니다. 이 기능이 필요 없으면 연락주세요.
@@ -133,14 +123,14 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 	}
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-
-		if (m_webView != null) {
-			m_webView.onResume();
-		}
-	}
+  @Override
+  public void onNewIntent(Intent intent){
+    super.onNewIntent(intent);
+    if (m_webView != null && intent != null)
+    {
+      m_webView.onBootstrap(parsePushBundleUrl(intent.getExtras()));
+    }
+  }
 
 	@Override
 	public void onActivityResult(int requestCode, int resultCode, Intent intent)
@@ -151,42 +141,15 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 		}
 	}
 
-	private boolean isPushBundle(Bundle bun)
-	{
-		return bun.containsKey(PUSHARG_URL);
-	}
-
-	@Override
-	protected void onNewIntent(Intent intent)
-	{
-		super.onNewIntent(intent);
-		Util.d("MainAct.onNewIntent: " + intent);
-
-		Bundle bun = intent.getExtras();
-		if (bun != null && isPushBundle(bun))
-		{
-			alertPushDialog(bun);
-		}
-	}
-
-	public void alertPushDialog(Bundle bun)
-	{
-		final String url = bun.getString(PUSHARG_URL);
-		if (!Util.isNullOrEmpty(url))
-		{
-			safelyGoToURL(url);
-		}
-	}
-
-	private void safelyGoToURL(String url)
-	{
-		if (url.startsWith("/"))
-		{
-			url = ApiMan.getBaseUrl() + url.substring(1);
-		}
-
-		m_webView.loadRemoteUrl(url);
-	}
+	private String parsePushBundleUrl(Bundle bun) {
+    if (bun != null && bun.containsKey(PUSHARG_URL)) {
+      String url = bun.getString(PUSHARG_URL);
+      if (!Util.isNullOrEmpty(url)) {
+        return url;
+      }
+    }
+    return null;
+  }
 
 	@Override
 	public void onBackPressed()
@@ -210,11 +173,6 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 	@Override
 	public void onPageStarted(String url) {
 		m_progressLayoutView.setVisibility(View.VISIBLE);
-
-		if (!m_webView.isStartUrl(url) && m_delayedBundle != null) {
-			alertPushDialog(m_delayedBundle);
-			m_delayedBundle = null;
-		}
 	}
 
 	@Override
@@ -224,6 +182,10 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
 	@Override
 	public void onProgressChange(int progress) {
+	  if (m_progressBarView.getProgress() == progress) {
+	    return;
+    }
+
 		if (progress < 100) {
 			if (progress < m_progressBarView.getProgress()) {
 				m_progressBarView.setProgress(0);

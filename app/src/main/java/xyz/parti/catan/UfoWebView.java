@@ -15,7 +15,6 @@ import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Handler;
-import android.support.annotation.NonNull;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
@@ -34,6 +33,10 @@ import android.webkit.WebViewClient;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,11 +55,11 @@ public class UfoWebView
 		void onPageError(String failingUrl);
 	}
 
-	public static final int REQCODE_CHOOSE_FILE = 1234;
+	static final int REQCODE_CHOOSE_FILE = 1234;
 	private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3 Safari/7046A194A";
-  public static final String BASE_URL = BuildConfig.API_BASE_URL;
+  private static final String BASE_URL = BuildConfig.API_BASE_URL;
 	private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
-  public static final String START_URL = BASE_URL + "mobile_app/start";
+  private static final String START_URL = BASE_URL + "mobile_app/start";
 
 	private Activity m_activity;
 	private WebView m_webView;
@@ -87,7 +90,7 @@ public class UfoWebView
 
 			return true;
 		};
-		
+
 		@Override
 		public boolean onJsConfirm(WebView view, String url, String message, final JsResult result)
 		{
@@ -328,7 +331,7 @@ public class UfoWebView
 		}
 	};
 
-	public UfoWebView(Activity act, View webView, Listener lsnr)
+  public UfoWebView(Activity act, View webView, Listener lsnr)
 	{
 		m_activity = act;
 		m_webView = (WebView) webView;
@@ -353,10 +356,14 @@ public class UfoWebView
 		m_webView.addJavascriptInterface(this, "ufo");
   }
 
-  public void onStart(Activity act) {
-    final IntentFilter intentFilter = new IntentFilter();
-    intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
-    act.registerReceiver(m_connectivityReceiver, intentFilter);
+  public void onStart(Activity act, String afterStartUrl) {
+    registerReciver(act);
+
+    String startUrl = getLastOnlineUrl(getStartUrl());
+    if (afterStartUrl != null) {
+      startUrl = getStartUrl(afterStartUrl);
+    }
+    onBootstrap(startUrl);
   }
 
 	public void onStop(Activity act)
@@ -364,36 +371,28 @@ public class UfoWebView
 		act.unregisterReceiver(m_connectivityReceiver);
 	}
 
-  public void onResume() {
+  public void onBootstrap(String url) {
     if (!Util.isNetworkOnline(m_webView.getContext())) {
       onNetworkOffline();
       return;
     }
-
     if (m_wasOfflineShown) {
-      loadLocalHtml("reloading.html");
       m_wasOfflineShown = false;
-      new Handler().postDelayed(new Runnable() {
-        @Override
-        public void run() {
-          loadFirstUrl();
-        }
-      }, 500);
-    } else {
-      loadFirstUrl();
     }
+    loadRemoteUrlIfNew(url);
   }
 
-  private void loadFirstUrl() {
-    String lastOnlineUrl = getLastOnlineUrl(UfoWebView.START_URL);
-    if( !lastOnlineUrl.equals(m_webView.getUrl()) ) {
-      loadRemoteUrl(lastOnlineUrl);
-    }
+  private void registerReciver(Activity act) {
+    final IntentFilter intentFilter = new IntentFilter();
+    intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+    act.registerReceiver(m_connectivityReceiver, intentFilter);
   }
 
 	public boolean canGoBack()
 	{
-		return m_webView.getUrl() != null && !m_webView.getUrl().equals(UfoWebView.BASE_URL) && !m_webView.getUrl().equals(UfoWebView.START_URL);
+		return m_webView.getUrl() != null
+            && !m_webView.getUrl().equals(UfoWebView.BASE_URL)
+            && !isStartUrl(m_webView.getUrl());
 	}
 
 	public void loadRemoteUrl(String url)
@@ -401,6 +400,14 @@ public class UfoWebView
 		Util.d("loadRemoteUrl: %s", url);
 		processRemoteUrl(m_webView, url);
 	}
+
+  public void loadRemoteUrlIfNew(String url)
+  {
+    if( url == null || url.equals(m_webView.getUrl()) ) {
+      return;
+    }
+    loadRemoteUrl(url);
+  }
 
 	public void loadLocalHtml(String htmlName)
 	{
@@ -424,7 +431,7 @@ public class UfoWebView
       return;
     }
 		m_wasOfflineShown = false;
-		loadRemoteUrl(getLastOnlineUrl(UfoWebView.START_URL));
+		loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
 	}
 
 	public void handleUfoLink(String link)
@@ -523,13 +530,11 @@ Util.d("JS: %s", js);
 					}
 				}
 
-				String backOnlineUrl = UfoWebView.BASE_URL;
 				if(!m_onlineUrls.isEmpty()) {
 					m_onlineUrls.remove(m_onlineUrls.size() - 1);
-					if (getLastOnlineUrl() != null) {
-						backOnlineUrl = getLastOnlineUrl();
-					}
 				}
+        String backOnlineUrl = getLastOnlineUrl(UfoWebView.BASE_URL);
+
 				if(backOnlineUrl.equals(backBrowserUrl)) {
 					m_webView.goBack();
 				} else {
@@ -545,14 +550,14 @@ Util.d("JS: %s", js);
 
       @Override
       public void run() {
-        loadRemoteUrl(getLastOnlineUrl(UfoWebView.START_URL));
+        loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
       }
     });
   }
 
 	@JavascriptInterface
 	public void addOnlineUrl(String url) {
-		if (getLastOnlineUrl() == null || !getLastOnlineUrl().equals(url) ) {
+		if (url != null && !url.equals(getLastOnlineUrl()) ) {
 			m_onlineUrls.add(url);
 		}
 	}
@@ -672,6 +677,25 @@ Util.d("JS: %s", js);
   }
 
   public boolean isStartUrl(String url) {
-    return UfoWebView.START_URL.equals(url);
+	  if (url == null) return false;
+    try {
+      if (url.startsWith(UfoWebView.START_URL) && new URL(UfoWebView.START_URL).getPath() == new URL(url).getPath()) {
+        return true;
+      }
+    } catch (MalformedURLException e) {}
+    return false;
+  }
+
+  private String getStartUrl() {
+    return getStartUrl(null);
+  }
+
+  private String getStartUrl(String afterStartUrl) {
+    String encoded = "";
+    try {
+      encoded = URLEncoder.encode((afterStartUrl != null ? afterStartUrl : UfoWebView.BASE_URL), "UTF-8");
+    } catch (UnsupportedEncodingException ignored) {
+    }
+    return UfoWebView.START_URL + "?after=" + encoded;
   }
 }
