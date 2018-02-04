@@ -245,7 +245,10 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
       if (pushToken == null)
         pushToken = "";
 
-      String appId = getPackageName();
+      String appId = "xyz.parti.catan.android";
+      if(BuildConfig.IS_DEBUG) {
+        appId += ".debug";
+      }
       CatanApp.getApiManager().requestRegisterToken(this, authkey, pushToken, appId);
 
       // (HTML쪽에서 로그인ID도 보내주면 활용할 수 있음)
