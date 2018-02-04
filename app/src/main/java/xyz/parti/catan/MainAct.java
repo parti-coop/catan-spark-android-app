@@ -133,6 +133,18 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
   }
 
   @Override
+  protected void onResume() {
+    super.onResume();
+    m_webView.onResume();
+  }
+
+  @Override
+  protected void onPause() {
+    super.onResume();
+    m_webView.onPause();
+  }
+
+  @Override
   public void onActivityResult(int requestCode, int resultCode, Intent intent)
   {
     if (requestCode == UfoWebView.REQCODE_CHOOSE_FILE)

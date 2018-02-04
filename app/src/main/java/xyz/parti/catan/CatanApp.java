@@ -52,6 +52,7 @@ public class CatanApp extends Application
 
   private void notifyBackground() {
     // This is where you can notify listeners, handle session tracking, etc
+
   }
 
   public boolean isBackground() {

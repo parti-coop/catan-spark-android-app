@@ -26,6 +26,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebHistoryItem;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -34,6 +35,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -64,6 +67,7 @@ public class UfoWebView
   private WebView m_webView;
   private Listener m_listener;
   private boolean m_wasOfflineShown;
+  private boolean m_waitingForForegroundShown;
   private List<String> m_onlineUrls = new ArrayList<>();
   private String m_defaultUserAgent;
 
@@ -253,7 +257,9 @@ public class UfoWebView
       if (failingUrl != null && !(failingUrl.startsWith("http:") || failingUrl.startsWith("https:"))) {
         Util.d("onReceivedError(%d,%s, %s) ignore for none http(s)", errorCode, description, failingUrl);
       }
-      if (Util.isNetworkOnline(MainAct.getInstance())) {
+      if (CatanApp.getApp().isBackground()) {
+        onWaitingForForeground();
+      } else if (Util.isNetworkOnline(MainAct.getInstance())) {
         m_listener.onPageError(failingUrl);
       } else {
         onNetworkOffline();
@@ -295,6 +301,11 @@ public class UfoWebView
 
       // 해당되는 경우가 없으므로 계속 진행한다
       return false;
+    }
+
+    @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+      return super.shouldInterceptRequest(view, request);
     }
 
     @TargetApi(Build.VERSION_CODES.N)
@@ -365,11 +376,13 @@ public class UfoWebView
   public void onStart(Activity act, String afterStartUrl) {
     registerReciver(act);
 
-    String startUrl = getLastOnlineUrl(getStartUrl());
-    if (afterStartUrl != null) {
-      startUrl = getStartUrl(afterStartUrl);
+    String url;
+    if (afterStartUrl == null) {
+      url = getLastOnlineUrl(getStartUrl());
+    } else {
+      url = getStartUrl(afterStartUrl);
     }
-    onBootstrap(startUrl);
+    onBootstrap(url);
   }
 
   public void onStop(Activity act)
@@ -385,7 +398,38 @@ public class UfoWebView
     if (m_wasOfflineShown) {
       m_wasOfflineShown = false;
     }
+    if (m_waitingForForegroundShown) {
+      m_waitingForForegroundShown = false;
+      if (!isStartUrl(url)) {
+        url = getStartUrl(url);
+      }
+    }
     loadRemoteUrlIfNew(url);
+  }
+
+  public void onResume() {
+    m_webView.resumeTimers();
+    callHiddenWebViewMethod("onResume");
+  }
+
+  public void onPause() {
+    m_webView.pauseTimers();
+    callHiddenWebViewMethod("onPause");
+  }
+
+  private void callHiddenWebViewMethod(String name){
+    if( m_webView != null ){
+      try {
+        Method method = WebView.class.getMethod(name);
+        method.invoke(m_webView);
+      } catch (NoSuchMethodException e) {
+        Util.e("No such method: " + name , e.toString());
+      } catch (IllegalAccessException e) {
+        Util.e("Illegal Access: " + name, e.toString());
+      } catch (InvocationTargetException e) {
+        Util.e("Invocation Target Exception: " + name, e.toString());
+      }
+    }
   }
 
   private void registerReciver(Activity act) {
@@ -440,6 +484,16 @@ public class UfoWebView
     }
     m_wasOfflineShown = false;
     loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
+  }
+
+  public void onWaitingForForeground()
+  {
+    Util.d("Wating for foreground");
+    if (m_waitingForForegroundShown) {
+      return;
+    }
+    m_waitingForForegroundShown = true;
+    loadLocalHtml("background.html");
   }
 
   public void handleUfoLink(String link)
