@@ -36,11 +36,13 @@ android {
             buildConfigField "boolean", var_is_debug, "true"
             buildConfigField "String", var_api_base_url, ( '"' + debug_api_base_url + '"' ?: "\"http://parti.test/\"" )
             buildConfigField "String", var_api_base_url_regx, ( '"' + debug_api_base_url_regx + '"' ?: "\"^https:\\\\/\\\\/(.*\\\\.)?parti\\\\.test(\$|\\\\/)\"" )
+            manifestPlaceholders = [ crashlyticsApiKey: '767a814309d5e5b2803f20b7e992ad890513b53d' ]
         }
         release {
             buildConfigField "boolean", var_is_debug, "false"
             buildConfigField "String", var_api_base_url, "\"https://parti.xyz/\""
             buildConfigField "String", var_api_base_url_regx, "\"^https:\\\\/\\\\/(.*\\\\.)?parti\\\\.xyz(\$|\\\\/)\""
+            manifestPlaceholders = [ crashlyticsApiKey: '61fec037830f072a57601a3e9f538a4a0f0d1ac3' ]
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
