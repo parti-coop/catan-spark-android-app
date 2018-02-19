@@ -68,8 +68,10 @@ public class UfoWebView
   private Listener m_listener;
   private boolean m_wasOfflineShown;
   private boolean m_waitingForForegroundShown;
-  private List<String> m_onlineUrls = new ArrayList<>();
   private String m_defaultUserAgent;
+
+  private String m_basePageUrl;
+  private String m_currentUrl;
 
   private ValueCallback<Uri[]> m_uploadMultiValueCB;
   private ValueCallback<Uri> m_uploadSingleValueCB;
@@ -592,10 +594,7 @@ Util.d("JS: %s", js);
           }
         }
 
-        if(!m_onlineUrls.isEmpty()) {
-          m_onlineUrls.remove(m_onlineUrls.size() - 1);
-        }
-        String backOnlineUrl = getLastOnlineUrl(UfoWebView.BASE_URL);
+        String backOnlineUrl = getLastBasePageUrl(UfoWebView.BASE_URL);
 
         if(backOnlineUrl.equals(backBrowserUrl)) {
           m_webView.goBack();
@@ -618,9 +617,16 @@ Util.d("JS: %s", js);
   }
 
   @JavascriptInterface
-  public void addOnlineUrl(String url) {
-    if (url != null && !url.equals(getLastOnlineUrl()) ) {
-      m_onlineUrls.add(url);
+  public void changeBasePageUrl(String url) {
+    if (url != null) {
+      m_basePageUrl = url;
+    }
+  }
+
+  @JavascriptInterface
+  public void changeCurrentUrl(String url) {
+    if (url != null) {
+      m_currentUrl = url;
     }
   }
 
@@ -717,15 +723,18 @@ Util.d("JS: %s", js);
     return false;
   }
 
-  private String getLastOnlineUrl() {
-    return getLastOnlineUrl(null);
-  }
-
   private String getLastOnlineUrl(String fallback) {
-    if(m_onlineUrls.isEmpty()) {
+    if(Util.isNullOrEmpty(m_currentUrl)) {
       return fallback;
     }
-    return m_onlineUrls.get(m_onlineUrls.size() - 1);
+    return m_currentUrl;
+  }
+
+  private String getLastBasePageUrl(String fallback) {
+    if(Util.isNullOrEmpty(m_basePageUrl)) {
+      return fallback;
+    }
+    return m_basePageUrl;
   }
 
   public boolean isStartUrl(String url) {
