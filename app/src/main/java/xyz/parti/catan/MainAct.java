@@ -19,6 +19,7 @@ import android.preference.PreferenceManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
@@ -219,7 +220,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     new Handler().postDelayed(new Runnable() {
       @Override
       public void run() {
-        m_webView.retryLastRemoteUrl();
+        m_webView.goBack();
       }
     }, 1000);
   }
@@ -344,6 +345,23 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
         }
       });
       m_downloadPrgsDlg.show();
+    }
+    else if ("share".equals(action)) {
+      String text = null;
+      try {
+        text = json.getString("text");
+      }
+      catch (Exception ignore) {}
+      if(TextUtils.isEmpty(text)) {
+        Util.showSimpleAlert(this, null, "공유설정에 오류가 있습니다.");
+        return;
+      }
+
+      Intent sendIntent = new Intent();
+      sendIntent.setAction(Intent.ACTION_SEND);
+      sendIntent.putExtra(Intent.EXTRA_TEXT, text);
+      sendIntent.setType("text/plain");
+      startActivity(Intent.createChooser(sendIntent, "공유"));
     }
     else
     {

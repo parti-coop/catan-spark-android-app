@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Handler;
+import android.text.TextUtils;
 import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
@@ -380,7 +381,7 @@ public class UfoWebView
 
     String url;
     if (afterStartUrl == null) {
-      url = getLastOnlineUrl(getStartUrl());
+      url = getLastOnlineUrl();
     } else {
       url = getStartUrl(afterStartUrl);
     }
@@ -485,7 +486,7 @@ public class UfoWebView
       return;
     }
     m_wasOfflineShown = false;
-    loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
+    loadRemoteUrl(getLastOnlineUrl());
   }
 
   public void onWaitingForForeground()
@@ -594,12 +595,13 @@ Util.d("JS: %s", js);
           }
         }
 
-        String backOnlineUrl = getLastBasePageUrl(UfoWebView.BASE_URL);
-
-        if(backOnlineUrl.equals(backBrowserUrl)) {
+        if (TextUtils.isEmpty(m_basePageUrl)) {
+          return;
+        }
+        else if(m_basePageUrl.equals(backBrowserUrl)) {
           m_webView.goBack();
         } else {
-          loadRemoteUrl(backOnlineUrl);
+          loadRemoteUrl(m_basePageUrl);
         }
       }
     });
@@ -611,7 +613,7 @@ Util.d("JS: %s", js);
 
       @Override
       public void run() {
-        loadRemoteUrl(getLastOnlineUrl(getStartUrl()));
+        loadRemoteUrl(getLastOnlineUrl());
       }
     });
   }
@@ -723,18 +725,11 @@ Util.d("JS: %s", js);
     return false;
   }
 
-  private String getLastOnlineUrl(String fallback) {
+  private String getLastOnlineUrl() {
     if(Util.isNullOrEmpty(m_currentUrl)) {
-      return fallback;
+      return getStartUrl();
     }
     return m_currentUrl;
-  }
-
-  private String getLastBasePageUrl(String fallback) {
-    if(Util.isNullOrEmpty(m_basePageUrl)) {
-      return fallback;
-    }
-    return m_basePageUrl;
   }
 
   public boolean isStartUrl(String url) {
