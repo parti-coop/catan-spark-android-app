@@ -141,7 +141,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
   @Override
   protected void onPause() {
-    super.onResume();
+    super.onPause();
     m_webView.onPause();
   }
 
@@ -217,12 +217,11 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
   @Override
   public void onPageError(String url) {
     m_webView.loadLocalHtml("error.html");
-    new Handler().postDelayed(new Runnable() {
-      @Override
-      public void run() {
-        m_webView.goBack();
-      }
-    }, 1000);
+  }
+
+  @Override
+  public void onPageItemError(String url) {
+    Util.toastShort(this, "네트워크 상태가 좋지 않습니다.");
   }
 
   @Override

@@ -55,6 +55,7 @@ public class UfoWebView
     void onPageStarted(String url);
     void onPageFinished(String url);
     void onPageError(String failingUrl);
+    void onPageItemError(String failingUrl);
   }
 
   static final int REQCODE_CHOOSE_FILE = 1234;
@@ -256,14 +257,20 @@ public class UfoWebView
     @SuppressWarnings("deprecation")
     @Override
     public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-      Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
       if (failingUrl != null && !(failingUrl.startsWith("http:") || failingUrl.startsWith("https:"))) {
         Util.d("onReceivedError(%d,%s, %s) ignore for none http(s)", errorCode, description, failingUrl);
+        return;
       }
+
+      Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
       if (CatanApp.getApp().isBackground()) {
         onWaitingForForeground();
       } else if (Util.isNetworkOnline(MainAct.getInstance())) {
-        m_listener.onPageError(failingUrl);
+        if (view.getUrl() == failingUrl) {
+          m_listener.onPageError(failingUrl);
+        } else {
+          m_listener.onPageItemError(failingUrl);
+        }
       } else {
         onNetworkOffline();
       }
@@ -445,7 +452,8 @@ public class UfoWebView
   {
     return m_webView.getUrl() != null
             && !m_webView.getUrl().equals(UfoWebView.BASE_URL)
-            && !isStartUrl(m_webView.getUrl());
+            && !isStartUrl(m_webView.getUrl())
+            && m_basePageUrl != null;
   }
 
   public void loadRemoteUrl(String url)
