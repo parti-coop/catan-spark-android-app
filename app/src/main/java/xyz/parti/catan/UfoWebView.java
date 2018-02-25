@@ -42,7 +42,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 
@@ -383,16 +385,15 @@ public class UfoWebView
     m_webView.addJavascriptInterface(this, "ufo");
   }
 
-  public void onStart(Activity act, String afterStartUrl) {
+  public void onStart(Activity act, String pushNotifiedUrl) {
     registerReciver(act);
 
     String url;
-    if (afterStartUrl == null) {
-      url = getLastOnlineUrl();
+    if (pushNotifiedUrl == null) {
+      onBootstrap(getLastOnlineUrl(), null);
     } else {
-      url = getStartUrl(afterStartUrl);
+      onBootstrapForPushNotification(pushNotifiedUrl);
     }
-    onBootstrap(url);
   }
 
   public void onStop(Activity act)
@@ -400,7 +401,13 @@ public class UfoWebView
     act.unregisterReceiver(m_connectivityReceiver);
   }
 
-  public void onBootstrap(String url) {
+  public void onBootstrapForPushNotification(String pushNotifiedUrl) {
+    HashMap customHeader = new HashMap<String, String>();
+    customHeader.put("X-Catan-Push-Notified", "true");
+    onBootstrap(pushNotifiedUrl, customHeader);
+  }
+
+  private void onBootstrap(String url, Map<String, String> customHeader) {
     if (!Util.isNetworkOnline(m_webView.getContext())) {
       onNetworkOffline();
       return;
@@ -414,7 +421,7 @@ public class UfoWebView
         url = getStartUrl(url);
       }
     }
-    loadRemoteUrlIfNew(url);
+    loadRemoteUrlIfNew(url, customHeader);
   }
 
   public void onResume() {
@@ -448,28 +455,34 @@ public class UfoWebView
     act.registerReceiver(m_connectivityReceiver, intentFilter);
   }
 
-  public boolean canGoBack()
-  {
+  public boolean canGoBack() {
     return m_webView.getUrl() != null
             && !m_webView.getUrl().equals(UfoWebView.BASE_URL)
             && !isStartUrl(m_webView.getUrl())
             && m_basePageUrl != null;
   }
 
-  public void loadRemoteUrl(String url)
-  {
+  public void loadRemoteUrl(String url) {
+    loadRemoteUrl(url, null);
+  }
+
+  public void loadRemoteUrl(String url, Map<String, String> customHeader) {
     Util.d("loadRemoteUrl: %s", url);
     if ( !shouldOverrideRemoteUrlLoading(m_webView, url) ) {
-      m_webView.loadUrl(url);
+      if (customHeader == null) {
+        m_webView.loadUrl(url);
+      } else {
+        m_webView.loadUrl(url, customHeader);
+      }
     }
   }
 
-  public void loadRemoteUrlIfNew(String url)
+  public void loadRemoteUrlIfNew(String url, Map<String, String> customHeader)
   {
     if( url == null || url.equals(m_webView.getUrl()) ) {
       return;
     }
-    loadRemoteUrl(url);
+    loadRemoteUrl(url, customHeader);
   }
 
   public void loadLocalHtml(String htmlName)

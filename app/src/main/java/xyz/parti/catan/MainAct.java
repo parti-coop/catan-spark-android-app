@@ -129,7 +129,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     super.onNewIntent(intent);
     if (m_webView != null && intent != null)
     {
-      m_webView.onBootstrap(parsePushBundleUrl(intent.getExtras()));
+      m_webView.onBootstrapForPushNotification(parsePushBundleUrl(intent.getExtras()));
     }
   }
 
