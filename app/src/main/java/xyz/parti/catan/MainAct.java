@@ -20,6 +20,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
@@ -27,6 +28,7 @@ import android.widget.ProgressBar;
 
 import com.crashlytics.android.Crashlytics;
 import com.google.firebase.iid.FirebaseInstanceId;
+import com.wang.avi.AVLoadingIndicatorView;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -40,12 +42,14 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
   //private static final String KEY_UID = "xUID";
   private static final String KEY_AUTHKEY = "xAK";
   public static final String PUSHARG_URL = "url";
+  public static final int LOADING_PROGRESS_THRESHOLD = 85;
 
   private View m_vwSplashScreen;
   private UfoWebView m_webView;
   private FrameLayout m_progressLayoutView;
   private ProgressBar m_progressBarView;
   private ProgressDialog m_downloadPrgsDlg;
+  private AVLoadingIndicatorView m_indicator;
 
   private static MainAct s_this;
   public static MainAct getInstance()
@@ -83,6 +87,13 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     }
 
     m_vwSplashScreen = findViewById(R.id.splash);
+    m_indicator = findViewById(R.id.indicator);
+    m_indicator.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        m_webView.stopLoading();
+      }
+    });
     m_webView = new UfoWebView(this, findViewById(R.id.web), this);
     m_progressLayoutView = findViewById(R.id.progressLayout);
     m_progressBarView = findViewById(R.id.progressBar);
@@ -202,8 +213,19 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     if (progress < 100) {
       if (progress < m_progressBarView.getProgress()) {
         m_progressBarView.setProgress(0);
+
       }
+
+      if(progress >= LOADING_PROGRESS_THRESHOLD) {
+        stopIndicator();
+      } else {
+        if(!m_progressLayoutView.isShown()) {
+          startIndicator();
+        }
+      }
+
       m_progressLayoutView.setVisibility(View.VISIBLE);
+
       ObjectAnimator animation = ObjectAnimator.ofInt(m_progressBarView, "progress", progress);
       animation.setDuration(300); // 0.3 second
       animation.setInterpolator(new DecelerateInterpolator());
@@ -211,6 +233,8 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     } else {
       m_progressLayoutView.setVisibility(View.GONE);
       m_progressBarView.setProgress(0);
+
+      stopIndicator();
     }
   }
 
@@ -438,6 +462,27 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     {
       Util.toastShort(this, "이 파일을 미리 볼 수 있는 앱이 없습니다");
     }
+  }
+
+  void startIndicator(){
+    if(m_indicator.isShown()) return;
+    if(!m_webView.isCancelableLoading()) return;
+
+    new Handler().postDelayed(new Runnable() {
+      @Override
+      public void run() {
+        if(m_indicator.isShown()) return;
+        if(!m_webView.isCancelableLoading()) return;
+        if(!m_webView.isLoading(LOADING_PROGRESS_THRESHOLD)) return;
+
+        m_indicator.smoothToShow();
+      }
+    }, 1000 * 4);
+  }
+
+  void stopIndicator(){
+    if(!m_indicator.isShown()) return;
+    m_indicator.smoothToHide();
   }
 
   private Handler m_handler = new Handler()

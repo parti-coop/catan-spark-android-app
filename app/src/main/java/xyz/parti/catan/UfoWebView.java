@@ -561,7 +561,6 @@ public class UfoWebView
   public void evalJs(String format, Object ... args)
   {
     String js = args.length == 0 ? format : String.format(format, args);
-Util.d("JS: %s", js);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
     {
       m_webView.evaluateJavascript(js, null);
@@ -774,5 +773,17 @@ Util.d("JS: %s", js);
     } catch (UnsupportedEncodingException ignored) {
     }
     return UfoWebView.START_URL + "?after=" + encoded;
+  }
+
+  public boolean isCancelableLoading() {
+    return !Util.isNullOrEmpty(m_currentUrl) && !isStartUrl(m_webView.getUrl());
+  }
+
+  public boolean isLoading(int progress) {
+    return m_webView.getProgress() < progress;
+  }
+
+  public void stopLoading() {
+    m_webView.stopLoading();
   }
 }
