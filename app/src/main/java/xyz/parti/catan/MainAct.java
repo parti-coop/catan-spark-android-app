@@ -16,11 +16,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.FrameLayout;
@@ -162,6 +162,8 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     if (requestCode == UfoWebView.REQCODE_CHOOSE_FILE)
     {
       m_webView.onFileChooseResult(resultCode, intent);
+    } else {
+      super.onActivityResult(requestCode, resultCode, intent);
     }
   }
 
@@ -348,7 +350,7 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
 
       if (destPath == null)
       {
-        Util.showSimpleAlert(this, null, "다운로드할 저장소가 없는 것 같습니다.");
+        Util.showSimpleAlert(this, null, "다운로드할 저장소가 없습니다.");
         return;
       }
 

@@ -9,12 +9,18 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
+import android.os.Parcelable;
+import android.provider.MediaStore;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.text.TextUtils;
 import android.view.View;
 import android.webkit.JavascriptInterface;
@@ -32,21 +38,23 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import com.karumi.dexter.Dexter;
+import com.karumi.dexter.listener.single.DialogOnDeniedPermissionListener;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-
 
 public class UfoWebView
 {
@@ -79,6 +87,9 @@ public class UfoWebView
 
   private ValueCallback<Uri[]> m_uploadMultiValueCB;
   private ValueCallback<Uri> m_uploadSingleValueCB;
+  private String m_cameraPhotoPath;
+  private Uri m_capturedImageURI = null;
+
 
   private WebChromeClient m_chromeClient = new WebChromeClient()
   {
@@ -158,55 +169,159 @@ public class UfoWebView
       }
     }
 
-    private boolean startFileChooser(ValueCallback<Uri> single, ValueCallback<Uri[]> multi, Intent itt)
+    @Override
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    public boolean onShowFileChooser(WebView mWebView, final ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams)
     {
-      m_uploadSingleValueCB = single;
-      m_uploadMultiValueCB = multi;
+      if(m_activity == null) { return false; }
 
-      try
-      {
-        m_activity.startActivityForResult(itt, REQCODE_CHOOSE_FILE);
+      if(PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(m_activity, android.Manifest.permission.CAMERA)) {
+        return showMultiFileChooser(filePathCallback);
+      } else {
+        Dexter.withActivity(m_activity)
+                .withPermission(android.Manifest.permission.CAMERA)
+                .withListener(
+                        DialogOnDeniedPermissionListener.Builder
+                                .withContext(m_activity)
+                                .withTitle("카메라 권한")
+                                .withMessage("카메라로 사진 찍을 권한이 필요합니다")
+                                .withButtonText(android.R.string.ok)
+                                .withIcon(R.mipmap.ic_launcher)
+                                .build()).check();
+        return false;
       }
-      catch (ActivityNotFoundException e)
-      {
+    }
+
+    private boolean showMultiFileChooser(ValueCallback<Uri[]> filePathCallback) {
+      if(m_activity == null || filePathCallback == null) { return false; }
+
+      m_uploadSingleValueCB = null;
+      if (m_uploadMultiValueCB != null) {
+        m_uploadMultiValueCB.onReceiveValue(null);
+      }
+      m_uploadMultiValueCB = filePathCallback;
+
+      try {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(m_activity.getPackageManager()) != null) {
+          // Create the File where the photo should go
+          File photoFile = null;
+          try {
+            photoFile = createImageFile();
+          } catch (IOException ex) {
+            // Error occurred while creating the File
+            Util.e(getClass().getName(), "사진 파일을 저장할 수 없습니다", ex);
+          }
+          // Continue only if the File was successfully created
+          if (photoFile != null) {
+            m_cameraPhotoPath = "file:" + photoFile.getAbsolutePath();
+            takePictureIntent.putExtra("PhotoPath", m_cameraPhotoPath);
+            Uri photoUri = FileProvider.getUriForFile(m_activity, "xyz.parti.catan.fileprovider", photoFile);
+            takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+          } else {
+            takePictureIntent = null;
+          }
+        }
+
+        Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        contentSelectionIntent.setType("*/*");
+
+        Intent[] intentArray;
+        if (takePictureIntent != null) {
+          intentArray = new Intent[]{takePictureIntent};
+        } else {
+          intentArray = new Intent[0];
+        }
+
+        Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+        chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+        chooserIntent.putExtra(Intent.EXTRA_TITLE, "파일 선택");
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+
+        m_activity.startActivityForResult(chooserIntent, REQCODE_CHOOSE_FILE);
+      } catch (ActivityNotFoundException e) {
         m_uploadSingleValueCB = null;
         m_uploadMultiValueCB = null;
-        Util.toastShort(m_activity, "Cannot open file chooser");
+        Util.toastShort(m_activity, "앗 뭔가 잘못되었습니다!");
         return false;
       }
 
       return true;
     }
 
-    @Override
-    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public boolean onShowFileChooser(WebView mWebView, ValueCallback<Uri[]> filePathCallback, WebChromeClient.FileChooserParams fileChooserParams)
-    {
-      if (m_uploadMultiValueCB != null)
+    private File createImageFile() throws IOException {
+      if(m_activity == null) { return null; }
+
+      File[] cacheDirs = ContextCompat.getExternalCacheDirs(m_activity);
+      for (File dir : cacheDirs)
       {
-        m_uploadMultiValueCB.onReceiveValue(null);
+        if (dir.exists())
+        {
+          // TODO: space check
+          return new File( dir, "capture_" + System.currentTimeMillis() + ".jpg" );
+        }
       }
 
-      return startFileChooser(null, filePathCallback, fileChooserParams.createIntent());
+      return null;
     }
 
+    // Android 4.4 : 지원 안됨 / 우회 구현 안함
+    // Android 4.3 이하 : 아래 호출이 안되는 버그가 있음
+    //openFileChooser for Android 4.1 (API level 16) up to Android 4.3 (API level 18)
+    @SuppressWarnings("unused")
     public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType, String capture)
     {
-      openFileChooser(uploadMsg, acceptType);
+      showFileChooser(uploadMsg);
     }
 
-    public void openFileChooser(ValueCallback uploadMsg, String acceptType)
+    // openFileChooser for Android 3.0 (API level 11) up to Android 4.0 (API level 15)
+    @SuppressWarnings("unused")
+    public void openFileChooser(ValueCallback<Uri> uploadMsg, String acceptType)
     {
-      Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-      intent.addCategory(Intent.CATEGORY_OPENABLE);
-      intent.setType(acceptType);
-
-      startFileChooser(uploadMsg, null, Intent.createChooser(intent, "File Browser"));
+      showFileChooser(uploadMsg);
     }
 
+    // openFileChooser for Android 2.2 (API level 8) up to Android 2.3 (API level 10)
+    @SuppressWarnings("unused")
     public void openFileChooser(ValueCallback<Uri> uploadMsg)
     {
-      openFileChooser(uploadMsg, "image/*");
+      showFileChooser(uploadMsg);
+    }
+
+    // openFileChooser
+    private void showFileChooser(ValueCallback uploadMsg)
+    {
+      if(m_activity == null) { return; }
+
+      m_uploadSingleValueCB = uploadMsg;
+      m_uploadMultiValueCB = null;
+
+      // Create AndroidExampleFolder at sdcard
+      File imageStorageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "parti");
+      if (!imageStorageDir.exists()) {
+        // Create AndroidExampleFolder at sdcard
+        imageStorageDir.mkdirs();
+      }
+      // Create camera captured image file path and name
+      File file = new File(
+              imageStorageDir + File.separator + "IMG_"
+                      + String.valueOf(System.currentTimeMillis())
+                      + ".jpg");
+      m_capturedImageURI = Uri.fromFile(file);
+      // Camera capture image intent
+      final Intent captureIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+      captureIntent.putExtra(MediaStore.EXTRA_OUTPUT, m_capturedImageURI);
+
+      Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+      i.addCategory(Intent.CATEGORY_OPENABLE);
+      i.setType("*/*");
+      // Create file chooser intent
+      Intent chooserIntent = Intent.createChooser(i, "파일 선택");
+      // Set camera intent to file chooser
+      chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Parcelable[] { captureIntent });
+      // On select image call onActivityResult method of activity
+      m_activity.startActivityForResult(chooserIntent, REQCODE_CHOOSE_FILE);
     }
 
     @Override
@@ -219,22 +334,36 @@ public class UfoWebView
 
   public void onFileChooseResult(int resultCode, Intent intent)
   {
-    if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-    {
-      if (m_uploadMultiValueCB != null)
-      {
-        m_uploadMultiValueCB.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
-        m_uploadMultiValueCB = null;
+    if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+      if (m_uploadMultiValueCB == null) { return; }
+
+      Uri[] results = null;
+
+      // Check that the response is a good one
+      if (resultCode == Activity.RESULT_OK) {
+        if (intent == null) {
+          // If there is not data, then we may have taken a photo
+          if (m_cameraPhotoPath != null) {
+            results = new Uri[]{Uri.parse(m_cameraPhotoPath)};
+          }
+        } else {
+          results = WebChromeClient.FileChooserParams.parseResult(resultCode, intent);
+        }
       }
-    }
-    else
-    {
-      if (m_uploadSingleValueCB != null)
-      {
-        Uri result = intent == null || resultCode != Activity.RESULT_OK ? null : intent.getData();
-        m_uploadSingleValueCB.onReceiveValue(result);
-        m_uploadSingleValueCB = null;
+
+      m_uploadMultiValueCB.onReceiveValue(results);
+      m_uploadMultiValueCB = null;
+    } else {
+      if (m_uploadSingleValueCB == null) { return; }
+
+      Uri result = null;
+
+      if (resultCode == Activity.RESULT_OK) {
+        result = intent == null ? m_capturedImageURI : intent.getData();
       }
+
+      m_uploadSingleValueCB.onReceiveValue(result);
+      m_uploadSingleValueCB = null;
     }
   }
 
@@ -383,6 +512,10 @@ public class UfoWebView
     m_webView.setWebViewClient(m_webClient);
     m_webView.setWebChromeClient(m_chromeClient);
     m_webView.addJavascriptInterface(this, "ufo");
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && BuildConfig.IS_DEBUG) {
+      WebView.setWebContentsDebuggingEnabled(true);
+    }
   }
 
   public void onStart(Activity act, String pushNotifiedUrl) {
