@@ -8,29 +8,33 @@ android {
         applicationId "xyz.parti.catan"
         minSdkVersion 14
         targetSdkVersion 26
-        versionCode 11
+        versionCode 12
         versionName "1.0.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        release {
-            storeFile file("parti.keystore")
-            storePassword "8b7i9hIv07728698"
-            keyAlias "parti"
-            keyPassword "5E1b2PNn72862013"
-        }
-    }
-
     Properties properties = new Properties()
     properties.load(project.rootProject.file('local.properties').newDataInputStream())
-    def debug_api_base_url = properties.getProperty('debug.api.base.url')
-    def debug_api_base_url_regx = properties.getProperty('debug.api.base.url.regx')
+
+    signingConfigs {
+        release {
+            def store_password = properties.getProperty('signing.config.store.password')
+            def key_alias = properties.getProperty('signing.config.key.alias')
+            def key_password = properties.getProperty('signing.config.key.password')
+
+            storeFile file("parti.keystore")
+            storePassword store_password
+            keyAlias key_alias
+            keyPassword key_password
+        }
+    }
 
     buildTypes {
         def var_api_base_url = "API_BASE_URL"
         def var_is_debug = "IS_DEBUG"
         def var_api_base_url_regx = "API_BASE_URL_REGX"
+        def debug_api_base_url = properties.getProperty('debug.api.base.url')
+        def debug_api_base_url_regx = properties.getProperty('debug.api.base.url.regx')
 
         debug {
             buildConfigField "boolean", var_is_debug, "true"
