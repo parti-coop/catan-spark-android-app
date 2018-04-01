@@ -70,7 +70,7 @@ public class UfoWebView
 
   static final int REQCODE_CHOOSE_FILE = 1234;
   private static final String CATAN_USER_AGENT = " CatanSparkAndroid/2";
-  private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Linux; Android 6.0.1; SM-G920V Build/MMB29K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.98 Mobile Safari/537.36" + CATAN_USER_AGENT;
+  private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Linux; Android 6.0.1; SM-G920V Build/MMB29K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.98 Mobile Safari/537.36  " + CATAN_USER_AGENT;
   private static final String BASE_URL = BuildConfig.API_BASE_URL;
   private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
   private static final String START_URL = BASE_URL + "mobile_app/start";
@@ -452,7 +452,8 @@ public class UfoWebView
     @TargetApi(Build.VERSION_CODES.N)
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-      return super.shouldOverrideUrlLoading(view, request.getUrl().toString());
+      Util.d("shouldOverrideUrlLoading WebResourceRequest : %s", request.getUrl().toString());
+      return this.shouldOverrideUrlLoading(view, request.getUrl().toString());
     }
 
     @Override
@@ -857,19 +858,22 @@ public class UfoWebView
     if (url.startsWith(GOOGLE_OAUTH_START_URL)) {
       // 구글 인증이 시작되었다.
       // 가짜 User-Agent 사용을 시작한다.
+      Util.d("Start google oauth");
       view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
-      return false;
+      view.loadUrl(url);
+      return true;
     } else if (FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString())) {
       // 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
-      if ( url.startsWith("https://accounts.google.com") ) {
+      if (url.startsWith(UfoWebView.BASE_URL)) {
+        Util.d("Finish google oauth");
         // 구글 인증이 시작된 상태였다가
         // 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
         // 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
         view.getSettings().setUserAgentString(m_defaultUserAgent);   // set default
-        return false;
+        view.loadUrl(url);
+        return true;
       } else {
-        // 아직 구글로그인 중이다
-        view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+        Util.d("Running google oauth");
         return false;
       }
     }
