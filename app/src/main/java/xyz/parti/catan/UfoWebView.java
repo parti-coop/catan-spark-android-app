@@ -54,6 +54,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class UfoWebView
@@ -70,7 +71,6 @@ public class UfoWebView
 
   static final int REQCODE_CHOOSE_FILE = 1234;
   private static final String CATAN_USER_AGENT = " CatanSparkAndroid/2";
-  private static final String FAKE_USER_AGENT_FOR_GOOGLE_OAUTH = "Mozilla/5.0 (Linux; Android 6.0.1; SM-G920V Build/MMB29K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.98 Mobile Safari/537.36  " + CATAN_USER_AGENT;
   private static final String BASE_URL = BuildConfig.API_BASE_URL;
   private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
   private static final String START_URL = BASE_URL + "mobile_app/start";
@@ -81,6 +81,7 @@ public class UfoWebView
   private boolean m_wasOfflineShown;
   private boolean m_waitingForForegroundShown;
   private String m_defaultUserAgent;
+  private String m_fakeUserAgent;
 
   private String m_basePageUrl;
   private String m_currentUrl;
@@ -500,6 +501,7 @@ public class UfoWebView
     webSettings.setSupportMultipleWindows(true);
     String userAgent = webSettings.getUserAgentString();
     m_defaultUserAgent = userAgent + CATAN_USER_AGENT;
+    m_fakeUserAgent = buildFakeUserAgentString(m_defaultUserAgent);
     webSettings.setUserAgentString(m_defaultUserAgent);
 
     webSettings.setDefaultFontSize(18);
@@ -517,6 +519,17 @@ public class UfoWebView
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && BuildConfig.IS_DEBUG) {
       WebView.setWebContentsDebuggingEnabled(true);
     }
+  }
+
+  private String buildFakeUserAgentString(String defaultUserAgent) {
+    String result = defaultUserAgent;
+
+    String code = "(Linux; Android " + android.os.Build.VERSION.RELEASE + "; "
+            + android.os.Build.MODEL + " Build/" + android.os.Build.ID + ")";
+
+    Pattern pattern = Pattern.compile("\\(.+\\)");
+    Matcher matcher = pattern.matcher(result);
+    return matcher.replaceFirst(code);
   }
 
   public void onStart(Activity act, String pushNotifiedUrl) {
@@ -858,11 +871,11 @@ public class UfoWebView
     if (url.startsWith(GOOGLE_OAUTH_START_URL)) {
       // 구글 인증이 시작되었다.
       // 가짜 User-Agent 사용을 시작한다.
-      Util.d("Start google oauth");
-      view.getSettings().setUserAgentString(FAKE_USER_AGENT_FOR_GOOGLE_OAUTH);
+      Util.d("Start google oauth : " + m_fakeUserAgent);
+      view.getSettings().setUserAgentString(m_fakeUserAgent);
       view.loadUrl(url);
       return true;
-    } else if (FAKE_USER_AGENT_FOR_GOOGLE_OAUTH.equals(view.getSettings().getUserAgentString())) {
+    } else if (m_fakeUserAgent.equals(view.getSettings().getUserAgentString())) {
       // 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
       if (url.startsWith(UfoWebView.BASE_URL)) {
         Util.d("Finish google oauth");
