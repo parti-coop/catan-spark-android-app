@@ -16,7 +16,6 @@ public class ApiMan implements HttpMan.OnHttpListener
   public static void setDevMode()
   {
     API_BASEURL = BuildConfig.API_BASE_URL;
-    Util.toastShort(CatanApp.getApp(), "개발자모드");
   }
 
   public static String getBaseUrl()

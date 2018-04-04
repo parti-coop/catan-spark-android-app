@@ -75,14 +75,20 @@ public class Util
     return sb.toString();
   }
 
-  public static void toastShort(Context ctx, String msg)
+  public static void toastShort(Activity activity, String msg)
   {
-    Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show();
+    if (activity == null || activity.isFinishing()){
+      return;
+    }
+    Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show();
   }
 
-  public static void toastShort(Context ctx, int strId)
+  public static void toastShort(Activity activity, int strId)
   {
-    Toast.makeText(ctx, strId, Toast.LENGTH_SHORT).show();
+    if (activity == null || activity.isFinishing()){
+      return;
+    }
+    Toast.makeText(activity, strId, Toast.LENGTH_SHORT).show();
   }
 
   public static void setOnClickListener(Activity act, int id, View.OnClickListener lsnr)

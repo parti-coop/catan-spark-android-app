@@ -72,7 +72,10 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
       return;
     }
 
-    if (BuildConfig.IS_DEBUG) CatanApp.getApiManager().setDevMode();
+    if(BuildConfig.IS_DEBUG) {
+      CatanApp.getApiManager().setDevMode();
+      Util.toastShort(this, "개발 모드!");
+    }
   }
 
   @Override
