@@ -34,6 +34,14 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".CopyToClipboardActivity"
+            android:exported="false"
+            android:icon="@mipmap/ic_copy_link"
+            android:label="@string/copy_link_to_clipboard"
+            android:theme="@android:style/Theme.NoDisplay">
+        </activity>
+
         <service
             android:name=".MyFirebaseMessagingService">
             <intent-filter>

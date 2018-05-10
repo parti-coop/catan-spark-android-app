@@ -375,8 +375,10 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
     }
     else if ("share".equals(action)) {
       String text = null;
+      String url = null;
       try {
         text = json.getString("text");
+        url = json.getString("url");
       }
       catch (Exception ignore) {}
       if(TextUtils.isEmpty(text)) {
@@ -388,7 +390,17 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
       sendIntent.setAction(Intent.ACTION_SEND);
       sendIntent.putExtra(Intent.EXTRA_TEXT, text);
       sendIntent.setType("text/plain");
-      startActivity(Intent.createChooser(sendIntent, "공유"));
+
+      Intent chooserIntent = Intent.createChooser(sendIntent, "공유");
+
+      Intent clipboardIntent = null;
+      if(url != null) {
+        clipboardIntent = new Intent(this, CopyToClipboardActivity.class);
+        clipboardIntent.setData(Uri.parse(url));
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { clipboardIntent });
+      }
+
+      startActivity(chooserIntent);
     }
     else
     {
