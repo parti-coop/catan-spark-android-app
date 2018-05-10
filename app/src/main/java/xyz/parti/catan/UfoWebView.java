@@ -5,11 +5,13 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.Uri;
@@ -52,7 +54,9 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -203,6 +207,8 @@ public class UfoWebView
       m_uploadMultiValueCB = filePathCallback;
 
       try {
+        List<Intent> allIntents = new ArrayList<>();
+
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(m_activity.getPackageManager()) != null) {
           // Create the File where the photo should go
@@ -224,21 +230,62 @@ public class UfoWebView
           }
         }
 
-        Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
-        contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
-        contentSelectionIntent.setType("*/*");
-
-        Intent[] intentArray;
-        if (takePictureIntent != null) {
-          intentArray = new Intent[]{takePictureIntent};
-        } else {
-          intentArray = new Intent[0];
+        if(takePictureIntent != null) {
+          allIntents.add(takePictureIntent);
         }
 
+        // 파일
+        Intent fileIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        fileIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        fileIntent.setType("file/*");
+
+        List<ResolveInfo> listFile = m_activity.getPackageManager().queryIntentActivities(fileIntent, 0);
+        for (ResolveInfo res : listFile) {
+          Intent intent = new Intent(fileIntent);
+          ComponentName componentName = new ComponentName(res.activityInfo.packageName, res.activityInfo.name);
+          intent.setComponent(componentName);
+          intent.setPackage(res.activityInfo.packageName);
+          allIntents.add(intent);
+        }
+
+        // 갤러리
+        Intent galleryIntent = new Intent(Intent.ACTION_GET_CONTENT);
+        galleryIntent.addCategory(Intent.CATEGORY_OPENABLE);
+        galleryIntent.setType("image/*");
+
+        List<ResolveInfo> listGallery = m_activity.getPackageManager().queryIntentActivities(galleryIntent, 0);
+        for (ResolveInfo res : listGallery) {
+          Intent intent = new Intent(galleryIntent);
+          ComponentName componentName = new ComponentName(res.activityInfo.packageName, res.activityInfo.name);
+
+          boolean alreadyIntent = false;
+          for (Intent previousIntent : allIntents) {
+            if (previousIntent.getComponent() == null) {
+              continue;
+            }
+            if (previousIntent.getComponent().getClassName().equals(componentName.getClassName())) {
+              alreadyIntent = true;
+              break;
+            }
+          }
+
+          if(alreadyIntent) {
+            continue;
+          }
+
+          intent.setComponent(new ComponentName(res.activityInfo.packageName, res.activityInfo.name));
+          intent.setPackage(res.activityInfo.packageName);
+          allIntents.add(intent);
+        }
+
+        // the main intent is the last in the list (fucking android) so pickup the useless one
+        Intent mainIntent = allIntents.get(allIntents.size() - 1);
+        allIntents.remove(mainIntent);
+
         Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
-        chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+        chooserIntent.putExtra(Intent.EXTRA_INTENT, mainIntent);
         chooserIntent.putExtra(Intent.EXTRA_TITLE, "파일 선택");
-        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+        chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, allIntents.toArray(new Parcelable[allIntents.size()]));
 
         m_activity.startActivityForResult(chooserIntent, REQCODE_CHOOSE_FILE);
       } catch (ActivityNotFoundException e) {
