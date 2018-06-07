@@ -16,7 +16,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
-import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
@@ -27,6 +26,14 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 
 import com.crashlytics.android.Crashlytics;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
+import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.wang.avi.AVLoadingIndicatorView;
 
@@ -37,12 +44,13 @@ import java.io.File;
 import java.net.URLConnection;
 import java.util.List;
 
-public class MainAct extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
+public class MainActivity extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
 {
   //private static final String KEY_UID = "xUID";
   private static final String KEY_AUTHKEY = "xAK";
   public static final String PUSHARG_URL = "url";
   public static final int LOADING_PROGRESS_THRESHOLD = 85;
+  public static final int RC_SIGN_IN = 100;
 
   private View m_vwSplashScreen;
   private UfoWebView m_webView;
@@ -51,11 +59,13 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
   private ProgressDialog m_downloadPrgsDlg;
   private AVLoadingIndicatorView m_indicator;
 
-  private static MainAct s_this;
-  public static MainAct getInstance()
+  private static MainActivity s_this;
+  public static MainActivity getInstance()
   {
     return s_this;
   }
+
+  private GoogleSignInClient mGoogleSignInClient;
 
   @Override
   protected void onCreate(Bundle savedInstanceState)
@@ -76,6 +86,8 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
       CatanApp.getApiManager().setDevMode();
       Util.toastShort(this, "개발 모드!");
     }
+
+    initGoogleLogin();
   }
 
   @Override
@@ -160,13 +172,13 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
   }
 
   @Override
-  public void onActivityResult(int requestCode, int resultCode, Intent intent)
-  {
-    if (requestCode == UfoWebView.REQCODE_CHOOSE_FILE)
-    {
+  public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+    super.onActivityResult(requestCode, resultCode, intent);
+    if (requestCode == UfoWebView.REQCODE_CHOOSE_FILE) {
       m_webView.onFileChooseResult(resultCode, intent);
-    } else {
-      super.onActivityResult(requestCode, resultCode, intent);
+    } else if (requestCode == MainActivity.RC_SIGN_IN) {
+      Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(intent);
+      handleGoogleSignInResult(task);
     }
   }
 
@@ -516,4 +528,39 @@ public class MainAct extends AppCompatActivity implements UfoWebView.Listener, A
       }
     }
   };
+
+  // Google Login
+  private void initGoogleLogin() {
+    GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.AUTH_GOOGLE_WEBCLIENT_ID)
+            .requestProfile()
+            .requestEmail()
+            .build();
+    this.mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
+  }
+
+  @Override
+  public void onGoogleSignIn() {
+    Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+    startActivityForResult(signInIntent, RC_SIGN_IN);
+  }
+
+  private void handleGoogleSignInResult(Task<GoogleSignInAccount> completedTask) {
+    try {
+      GoogleSignInAccount account = completedTask.getResult(ApiException.class);
+      // Signed in successfully, show authenticated UI.
+      Util.e("Google SignInResult:account.getIdToken() code=" + account.getIdToken());
+      m_webView.evalJs("requestGoogleAuth('%s')", account.getIdToken());
+    } catch (ApiException e) {
+      m_webView.cancelGoogleSign();
+      // The ApiException status code indicates the detailed failure reason.
+      // Please refer to the GoogleSignInStatusCodes class reference for more information.
+      Util.e("Google SignInResult:failed code=" + e.getStatusCode());
+      if(GoogleSignInStatusCodes.SIGN_IN_CANCELLED == e.getStatusCode()) {
+        Util.toastShort(this, "로그인을 취소했습니다");
+      } else {
+        Util.toastShort(this, "앗 뭔가 잘못되었습니다!");
+      }
+    }
+  }
 }

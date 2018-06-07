@@ -71,10 +71,11 @@ public class UfoWebView
     void onPageFinished(String url);
     void onPageError(String failingUrl);
     void onPageItemError(String failingUrl);
+    void onGoogleSignIn();
   }
 
   static final int REQCODE_CHOOSE_FILE = 1234;
-  private static final String CATAN_USER_AGENT = " CatanSparkAndroid/2";
+  private static final String CATAN_USER_AGENT = " CatanSparkAndroid/3";
   private static final String BASE_URL = BuildConfig.API_BASE_URL;
   private static final String GOOGLE_OAUTH_START_URL = BASE_URL + "users/auth/google_oauth2";
   private static final String START_URL = BASE_URL + "mobile_app/start";
@@ -444,8 +445,8 @@ public class UfoWebView
       Util.d("onReceivedError(%d,%s, %s)", errorCode, description, failingUrl);
       if (CatanApp.getApp().isBackground()) {
         onWaitingForForeground();
-      } else if (Util.isNetworkOnline(MainAct.getInstance())) {
-        if (view.getUrl() == failingUrl) {
+      } else if (Util.isNetworkOnline(MainActivity.getInstance())) {
+        if (view.getUrl().equals(failingUrl)) {
           m_listener.onPageError(failingUrl);
         } else {
           m_listener.onPageItemError(failingUrl);
@@ -737,7 +738,7 @@ public class UfoWebView
     else if ("fork".equalsIgnoreCase(action))
     {
       Util.d("fork: %s", param);
-      Util.startWebBrowser(MainAct.getInstance(), param);
+      Util.startWebBrowser(MainActivity.getInstance(), param);
     }
     else if ("eval".equalsIgnoreCase(action))
     {
@@ -790,7 +791,7 @@ public class UfoWebView
       url = url.substring(9);
 
     Util.d("forkPage: %s", url);
-    Util.startWebBrowser(MainAct.getInstance(), url);
+    Util.startWebBrowser(MainActivity.getInstance(), url);
   }
 
   @JavascriptInterface
@@ -847,6 +848,11 @@ public class UfoWebView
   }
 
   @JavascriptInterface
+  public void startGoogleSignIn() {
+    m_listener.onGoogleSignIn();
+  }
+
+  @JavascriptInterface
   public void post_(final String action, String jsonStr)
   {
     if (m_listener == null)
@@ -899,7 +905,7 @@ public class UfoWebView
    */
   protected boolean shouldOverrideRemoteUrlLoading(WebView view, String url) {
     Util.d("shouldOverrideRemoteUrlLoading: %s", url);
-    if (!Util.isNetworkOnline(MainAct.getInstance())) {
+    if (!Util.isNetworkOnline(MainActivity.getInstance())) {
       onNetworkOffline();
       return true;
     }
@@ -982,5 +988,9 @@ public class UfoWebView
 
   public void stopLoading() {
     m_webView.stopLoading();
+  }
+
+  public void cancelGoogleSign() {
+    m_webView.goBack();
   }
 }

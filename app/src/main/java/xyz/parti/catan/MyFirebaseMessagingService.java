@@ -37,19 +37,19 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
     if (remoteMessage.getNotification() != null)
     {
       /*Activity act = CatanApp.getCurActivity();
-      if (act != null && act == MainAct.getInstance())
+      if (act != null && act == MainActivity.getInstance())
       {
         // 앱이 실행중이다. 바로 푸시 내용을 보여준다.
         final Bundle bun = new Bundle();
-        bun.putString(MainAct.PUSHARG_TITLE, remoteMessage.getNotification().getTitle());
-        bun.putString(MainAct.PUSHARG_MESSAGE, remoteMessage.getNotification().getBody());
-        bun.putString(MainAct.PUSHARG_URL, remoteMessage.getData().get("url"));
+        bun.putString(MainActivity.PUSHARG_TITLE, remoteMessage.getNotification().getTitle());
+        bun.putString(MainActivity.PUSHARG_MESSAGE, remoteMessage.getNotification().getBody());
+        bun.putString(MainActivity.PUSHARG_URL, remoteMessage.getData().get("url"));
 
         act.runOnUiThread(new Runnable() {
           @Override
           public void run()
           {
-            MainAct.getInstance().alertPushDialog(bun);
+            MainActivity.getInstance().alertPushDialog(bun);
           }
         });
 
@@ -67,9 +67,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
   {
     RemoteMessage.Notification noti = rmsg.getNotification();
 
-    Intent intent = new Intent(this, MainAct.class);
+    Intent intent = new Intent(this, MainActivity.class);
     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-    intent.putExtra(MainAct.PUSHARG_URL, rmsg.getData().get("url"));
+    intent.putExtra(MainActivity.PUSHARG_URL, rmsg.getData().get("url"));
     PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
 
     String channelId = getString(R.string.default_notification_channel_id);
@@ -87,7 +87,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
         .setContentIntent(pendingIntent);
 
     Activity act = CatanApp.getCurActivity();
-    if (act != null && act == MainAct.getInstance()) {
+    if (act != null && act == MainActivity.getInstance()) {
       // 앱이 실행중이다. 바로 푸시 내용을 보여준다.
       // 안드로이드 5.0 버전이상, 이하 버전은 무시
       notificationBuilder.setPriority(Notification.PRIORITY_HIGH);

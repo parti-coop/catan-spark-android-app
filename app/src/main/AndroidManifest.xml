@@ -21,7 +21,7 @@
             android:value="@string/default_notification_channel_id"/>
 
         <activity
-            android:name=".MainAct"
+            android:name=".MainActivity"
             android:theme="@style/AppTheme.NoActionBar"
             android:screenOrientation="sensorPortrait"
             android:configChanges="orientation|keyboardHidden"
