@@ -9,4 +9,7 @@
     <string name="error_server_noconn">서버에 연결하지 못하였습니다.</string>
     <string name="error_server_fail">서버 오류 또는 요청 실패입니다.</string>
     <string name="error_download_fail">다운로드가 실패하였습니다.</string>
+
+    <string name="facebook_app_id">@string/auth_facebook_app_id</string>
+    <string name="fb_login_protocol_scheme">@string/auth_fb_login_protocol_scheme</string>
 </resources>

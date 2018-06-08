@@ -72,6 +72,8 @@ public class UfoWebView
     void onPageError(String failingUrl);
     void onPageItemError(String failingUrl);
     void onGoogleSignIn();
+    void onStartFacebookSignIn();
+    void onCallbackFacebookSignIn();
   }
 
   static final int REQCODE_CHOOSE_FILE = 1234;
@@ -853,6 +855,16 @@ public class UfoWebView
   }
 
   @JavascriptInterface
+  public void startFacebookSignIn() {
+    m_listener.onStartFacebookSignIn();
+  }
+
+  @JavascriptInterface
+  public void callbackFacebookSignIn() {
+    m_listener.onCallbackFacebookSignIn();
+  }
+
+  @JavascriptInterface
   public void post_(final String action, String jsonStr)
   {
     if (m_listener == null)
@@ -990,7 +1002,7 @@ public class UfoWebView
     m_webView.stopLoading();
   }
 
-  public void cancelGoogleSign() {
+  public void simpleGoBack() {
     m_webView.goBack();
   }
 }

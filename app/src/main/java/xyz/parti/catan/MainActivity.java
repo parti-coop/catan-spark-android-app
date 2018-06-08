@@ -26,12 +26,18 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 
 import com.crashlytics.android.Crashlytics;
+import com.facebook.AccessToken;
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
+import com.facebook.login.LoginManager;
+import com.facebook.login.LoginResult;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes;
-import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.iid.FirebaseInstanceId;
@@ -42,6 +48,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.net.URLConnection;
+import java.util.Collections;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements UfoWebView.Listener, ApiMan.Listener
@@ -66,6 +73,7 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
   }
 
   private GoogleSignInClient mGoogleSignInClient;
+  private CallbackManager mFacebookAuthClient;
 
   @Override
   protected void onCreate(Bundle savedInstanceState)
@@ -87,7 +95,8 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
       Util.toastShort(this, "개발 모드!");
     }
 
-    initGoogleLogin();
+    initGoogleSignIn();
+    initFacebookSignIn();
   }
 
   @Override
@@ -173,13 +182,15 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
 
   @Override
   public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-    super.onActivityResult(requestCode, resultCode, intent);
     if (requestCode == UfoWebView.REQCODE_CHOOSE_FILE) {
       m_webView.onFileChooseResult(resultCode, intent);
     } else if (requestCode == MainActivity.RC_SIGN_IN) {
       Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(intent);
       handleGoogleSignInResult(task);
+    } else {
+      mFacebookAuthClient.onActivityResult(requestCode, resultCode, intent);
     }
+    super.onActivityResult(requestCode, resultCode, intent);
   }
 
   private String parsePushBundleUrl(Bundle bun) {
@@ -324,6 +335,9 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
         {
           CatanApp.getApiManager().requestDeleteToken(this, lastAuthkey, pushToken);
         }
+
+        // Facebook Logout
+        LoginManager.getInstance().logOut();
       }
     }
     else if ("download".equals(action))
@@ -529,8 +543,8 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
     }
   };
 
-  // Google Login
-  private void initGoogleLogin() {
+  // Google Sign In
+  private void initGoogleSignIn() {
     GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(BuildConfig.AUTH_GOOGLE_WEBCLIENT_ID)
             .requestProfile()
@@ -549,10 +563,9 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
     try {
       GoogleSignInAccount account = completedTask.getResult(ApiException.class);
       // Signed in successfully, show authenticated UI.
-      Util.e("Google SignInResult:account.getIdToken() code=" + account.getIdToken());
       m_webView.evalJs("requestGoogleAuth('%s')", account.getIdToken());
     } catch (ApiException e) {
-      m_webView.cancelGoogleSign();
+      m_webView.simpleGoBack();
       // The ApiException status code indicates the detailed failure reason.
       // Please refer to the GoogleSignInStatusCodes class reference for more information.
       Util.e("Google SignInResult:failed code=" + e.getStatusCode());
@@ -562,5 +575,50 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
         Util.toastShort(this, "앗 뭔가 잘못되었습니다!");
       }
     }
+  }
+
+  // Facebook Sign In
+  private void initFacebookSignIn() {
+    CallbackManager callbackManager = CallbackManager.Factory.create();
+    LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+      @Override
+      public void onSuccess(LoginResult loginResult) {
+      }
+
+      @Override
+      public void onCancel() {
+        LoginManager.getInstance().logOut();
+        Util.toastShort(MainActivity.this, "로그인을 취소했습니다");
+      }
+
+      @Override
+      public void onError(FacebookException error) {
+        Util.e("Facebook SignInResult: failed! %s", error.getMessage());
+        LoginManager.getInstance().logOut();
+        Util.toastShort(MainActivity.this, "앗 뭔가 잘못되었습니다!");
+      }
+    });
+    this.mFacebookAuthClient = callbackManager;
+  }
+
+  @Override
+  public void onStartFacebookSignIn() {
+    LoginManager.getInstance().logInWithReadPermissions(this, Collections.singletonList("email"));
+  }
+
+  @Override
+  public void onCallbackFacebookSignIn() {
+    this.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        AccessToken accessToken = AccessToken.getCurrentAccessToken();
+        boolean isLoggedIn = accessToken != null && !accessToken.isExpired();
+        if (isLoggedIn) {
+          m_webView.evalJs("successFacebookAuth('%s')", accessToken.getToken());
+        } else {
+          m_webView.evalJs("failureFacebookAuth()");
+        }
+      }
+    });
   }
 }

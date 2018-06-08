@@ -6,7 +6,7 @@ android {
     compileSdkVersion 27
     defaultConfig {
         applicationId "xyz.parti.catan"
-        minSdkVersion 14
+        minSdkVersion 15
         targetSdkVersion 27
         versionCode 17
         versionName "1.0.5"
@@ -40,11 +40,21 @@ android {
         def debug_auth_google_webclient_id = properties.getProperty('debug.auth.google.webclient.id')
         def release_auth_google_webclient_id = properties.getProperty('release.auth.google.webclient.id')
 
+        def var_auth_facebook_app_id = "auth_facebook_app_id"
+        def debug_auth_facebook_app_id = properties.getProperty('debug.auth.facebook.app.id')
+        def release_auth_facebook_app_id = properties.getProperty('release.auth.facebook.app.id')
+
+        def var_auth_fb_login_protocol_scheme = "auth_fb_login_protocol_scheme"
+        def debug_auth_fb_login_protocol_scheme = properties.getProperty('debug.auth.fb.login.protocol.scheme')
+        def release_auth_fb_login_protocol_scheme = properties.getProperty('release.auth.fb.login.protocol.scheme')
+
         debug {
             buildConfigField "boolean", var_is_debug, "true"
             buildConfigField "String", var_api_base_url, ( '"' + debug_api_base_url + '"' ?: "\"http://parti.test/\"" )
             buildConfigField "String", var_api_base_url_regx, ( '"' + debug_api_base_url_regx + '"' ?: "\"^https:\\\\/\\\\/(.*\\\\.)?parti\\\\.test(\$|\\\\/)\"" )
             buildConfigField "String", var_auth_google_webclient_id, '"' + debug_auth_google_webclient_id + '"'
+            resValue "string", var_auth_facebook_app_id, '"' + debug_auth_facebook_app_id + '"'
+            resValue "string", var_auth_fb_login_protocol_scheme, '"' + debug_auth_fb_login_protocol_scheme + '"'
             manifestPlaceholders = [ crashlyticsApiKey: '767a814309d5e5b2803f20b7e992ad890513b53d' ]
         }
         release {
@@ -52,6 +62,8 @@ android {
             buildConfigField "String", var_api_base_url, "\"https://parti.xyz/\""
             buildConfigField "String", var_api_base_url_regx, "\"^https:\\\\/\\\\/(.*\\\\.)?parti\\\\.xyz(\$|\\\\/)\""
             buildConfigField "String", var_auth_google_webclient_id, '"' + release_auth_google_webclient_id + '"'
+            resValue "string", var_auth_facebook_app_id, '"' + release_auth_facebook_app_id + '"'
+            resValue "string", var_auth_fb_login_protocol_scheme, '"' + release_auth_fb_login_protocol_scheme + '"'
             manifestPlaceholders = [ crashlyticsApiKey: '61fec037830f072a57601a3e9f538a4a0f0d1ac3' ]
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -91,6 +103,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-core:16.0.0'
     implementation 'com.google.firebase:firebase-messaging:17.0.0'
     implementation 'com.google.android.gms:play-services-auth:15.0.1'
+    implementation 'com.facebook.android:facebook-login:[4,5)'
     implementation 'com.firebase:firebase-jobdispatcher:0.6.0'
     implementation 'com.wang.avi:library:2.1.3'
 

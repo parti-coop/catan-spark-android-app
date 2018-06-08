@@ -45,6 +45,7 @@ app/google-services.json
 .idea/gradle.xml
 .idea/runConfigurations.xml
 .idea/emacs.xml
+.idea/caches/build_file_checksums.ser
 *.iml
 
 # Local configuration file (sdk path, etc)
