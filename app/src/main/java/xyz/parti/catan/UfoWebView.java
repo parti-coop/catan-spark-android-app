@@ -71,9 +71,8 @@ public class UfoWebView
     void onPageFinished(String url);
     void onPageError(String failingUrl);
     void onPageItemError(String failingUrl);
-    void onGoogleSignIn();
-    void onStartFacebookSignIn();
-    void onCallbackFacebookSignIn();
+    void onStartSocialSignIn(String provider);
+    void onCallbackSocialSignIn(String provider);
   }
 
   static final int REQCODE_CHOOSE_FILE = 1234;
@@ -88,7 +87,6 @@ public class UfoWebView
   private boolean m_wasOfflineShown;
   private boolean m_waitingForForegroundShown;
   private String m_defaultUserAgent;
-  private String m_fakeUserAgent;
 
   private String m_basePageUrl;
   private String m_currentUrl;
@@ -551,7 +549,6 @@ public class UfoWebView
     webSettings.setSupportMultipleWindows(true);
     String userAgent = webSettings.getUserAgentString();
     m_defaultUserAgent = userAgent + CATAN_USER_AGENT;
-    m_fakeUserAgent = buildFakeUserAgentString(m_defaultUserAgent);
     webSettings.setUserAgentString(m_defaultUserAgent);
 
     webSettings.setDefaultFontSize(18);
@@ -569,17 +566,6 @@ public class UfoWebView
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && BuildConfig.IS_DEBUG) {
       WebView.setWebContentsDebuggingEnabled(true);
     }
-  }
-
-  private String buildFakeUserAgentString(String defaultUserAgent) {
-    String result = defaultUserAgent;
-
-    String code = "(Linux; Android " + android.os.Build.VERSION.RELEASE + "; "
-            + android.os.Build.MODEL + " Build/" + android.os.Build.ID + ")";
-
-    Pattern pattern = Pattern.compile("\\(.+\\)");
-    Matcher matcher = pattern.matcher(result);
-    return matcher.replaceFirst(code);
   }
 
   public void onStart(Activity act, String pushNotifiedUrl) {
@@ -850,18 +836,13 @@ public class UfoWebView
   }
 
   @JavascriptInterface
-  public void startGoogleSignIn() {
-    m_listener.onGoogleSignIn();
+  public void startSocialSignIn(final String provider) {
+    m_listener.onStartSocialSignIn(provider);
   }
 
   @JavascriptInterface
-  public void startFacebookSignIn() {
-    m_listener.onStartFacebookSignIn();
-  }
-
-  @JavascriptInterface
-  public void callbackFacebookSignIn() {
-    m_listener.onCallbackFacebookSignIn();
+  public void callbackSocialSignIn(final String provider) {
+    m_listener.onCallbackSocialSignIn(provider);
   }
 
   @JavascriptInterface
@@ -920,40 +901,6 @@ public class UfoWebView
     if (!Util.isNetworkOnline(MainActivity.getInstance())) {
       onNetworkOffline();
       return true;
-    }
-
-    if (BuildConfig.IS_DEBUG) {
-      // 구글 Oauth에서 parti.dev로 인증결과가 넘어오면 로컬 개발용이다.
-      // 그러므로 Config.apiBaseUrl로 주소를 바꾸어 인증하도록 한다
-      String GOOGLE_OAUTH_FOR_DEV_URL = "https://parti.dev/users/auth/google_oauth2/callback";
-      if ( url.startsWith(GOOGLE_OAUTH_FOR_DEV_URL) ) {
-        view.getSettings().setUserAgentString(m_defaultUserAgent);
-        view.loadUrl(url.replace("https://parti.dev/", UfoWebView.BASE_URL));
-        return true;
-      }
-    }
-
-    if (url.startsWith(GOOGLE_OAUTH_START_URL)) {
-      // 구글 인증이 시작되었다.
-      // 가짜 User-Agent 사용을 시작한다.
-      Util.d("Start google oauth : " + m_fakeUserAgent);
-      view.getSettings().setUserAgentString(m_fakeUserAgent);
-      view.loadUrl(url);
-      return true;
-    } else if (m_fakeUserAgent.equals(view.getSettings().getUserAgentString())) {
-      // 가짜 User-Agent 사용하는 걸보니 이전 request에서 구글 인증이 시작된 상태이다.
-      if (url.startsWith(UfoWebView.BASE_URL)) {
-        Util.d("Finish google oauth");
-        // 구글 인증이 시작된 상태였다가
-        // 구글 인증 주소가 아닌 다른 페이지로 이동하는 중이다.
-        // 구글 인증이 끝났다고 보고 원래 "User-Agent"로 원복한다.
-        view.getSettings().setUserAgentString(m_defaultUserAgent);   // set default
-        view.loadUrl(url);
-        return true;
-      } else {
-        Util.d("Running google oauth");
-        return false;
-      }
     }
 
     view.getSettings().setUserAgentString(m_defaultUserAgent);   // set default
