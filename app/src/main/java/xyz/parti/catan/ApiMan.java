@@ -97,7 +97,7 @@ public class ApiMan implements HttpMan.OnHttpListener
 
   public void requestFileDownload(Listener lsnr, String authkey, int postId, int fileId, String pathToSave, Handler prgsHandler)
   {
-    String uri = String.format("api/v1/posts/%d/download_file/%d", postId, fileId);
+    String uri = String.format("api/v1/file_sources/download_file/%d", fileId);
     HttpMan.QuerySpec spec = getEmptySpec(uri);
     spec.requestMethod = HttpMan.REQUESTMETHOD_GET;
 
