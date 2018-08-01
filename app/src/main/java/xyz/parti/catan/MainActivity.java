@@ -594,6 +594,8 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
         Util.toastShort(this, "로그인을 취소했습니다");
       } else {
         Util.toastShort(this, "다시 시도해 주세요");
+        Crashlytics.setInt("GoogleSignInErrorCode", e.getStatusCode());
+        Crashlytics.logException(e);
       }
     }
   }
