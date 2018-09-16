@@ -57,7 +57,6 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
 {
   //private static final String KEY_UID = "xUID";
   private static final String KEY_AUTHKEY = "xAK";
-  public static final String PUSHARG_URL = "url";
   public static final int LOADING_PROGRESS_THRESHOLD = 85;
   public static final int RC_SIGN_IN = 100;
 
@@ -86,9 +85,8 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
     s_this = this;
     CatanApp.getApp().onStartup();
 
-    if (m_webView != null)
-    {
-      // already initialized
+    if (m_webView != null) {
+      m_webView.bootstrap(new UrlBundle(getIntent()));
       return;
     }
 
@@ -100,20 +98,8 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
     SocialAuthContract.init(this);
     initGoogleSignIn();
     initFacebookSignIn();
-  }
 
-  @Override
-  public void onStart()
-  {
-    super.onStart();
-
-    if (m_webView != null)
-    {
-      m_webView.onStart(this, parsePushBundleUrl(getIntent().getExtras()));
-      return;
-    }
-
-    m_vwSplashScreen = findViewById(R.id.splash);
+    m_webView = new UfoWebView(this, findViewById(R.id.web), this);
     m_indicator = findViewById(R.id.indicator);
     m_indicator.setOnClickListener(new View.OnClickListener() {
       @Override
@@ -121,34 +107,47 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
         m_webView.stopLoading();
       }
     });
-    m_webView = new UfoWebView(this, findViewById(R.id.web), this);
+    m_webView.bootstrap(new UrlBundle(getIntent()));
+
     m_progressLayoutView = findViewById(R.id.progressLayout);
     m_progressBarView = findViewById(R.id.progressBar);
     m_progressBarView.setMax(100);
     m_progressBarView.setProgress(0);
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-    {
-      // Create channel to show notifications.
-      String channelId  = getString(R.string.default_notification_channel_id);
-      String channelName = getString(R.string.default_notification_channel_name);
-      NotificationManager notificationManager = getSystemService(NotificationManager.class);
-      notificationManager.createNotificationChannel(new NotificationChannel(channelId,
-        channelName, NotificationManager.IMPORTANCE_LOW));
-    }
+    createNotifiactionChannel();
+    showSplashScreen();
+  }
 
-    m_webView.onStart(this, parsePushBundleUrl(getIntent().getExtras()));
-
+  private void showSplashScreen() {
+    m_vwSplashScreen = findViewById(R.id.splash);
     // 1초간 스플래시 화면을 보여줍니다.
-    // iOS는 Launch스크린이 필수라서 대응하며 만든 기능입니다. 이 기능이 필요 없으면 연락주세요.
-    m_vwSplashScreen.postDelayed(new Runnable()
-    {
+    m_vwSplashScreen.postDelayed(new Runnable() {
       @Override
-      public void run()
-      {
+      public void run() {
         m_vwSplashScreen.setVisibility(View.GONE);
       }
     }, 2000);
+  }
+
+  private void createNotifiactionChannel() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      // Create channel to show notifications.
+      String channelId = getString(R.string.default_notification_channel_id);
+      String channelName = getString(R.string.default_notification_channel_name);
+      NotificationManager notificationManager = getSystemService(NotificationManager.class);
+      notificationManager.createNotificationChannel(new NotificationChannel(channelId,
+              channelName, NotificationManager.IMPORTANCE_LOW));
+    }
+  }
+
+  @Override
+  public void onStart()
+  {
+    super.onStart();
+
+    if (m_webView != null) {
+      m_webView.onStart(this);
+    }
   }
 
   @Override
@@ -156,18 +155,17 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
   {
     super.onStop();
 
-    if (m_webView != null)
-    {
+    if (m_webView != null) {
       m_webView.onStop(this);
     }
   }
 
   @Override
-  public void onNewIntent(Intent intent){
-    super.onNewIntent(intent);
-    if (m_webView != null && intent != null)
-    {
-      m_webView.onBootstrapForPushNotification(parsePushBundleUrl(intent.getExtras()));
+  public void onNewIntent(Intent newIntent) {
+    super.onNewIntent(newIntent);
+
+    if(this.m_webView != null) {
+      m_webView.bootstrap(new UrlBundle(newIntent));
     }
   }
 
@@ -194,16 +192,6 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
       mFacebookAuthClient.onActivityResult(requestCode, resultCode, intent);
     }
     super.onActivityResult(requestCode, resultCode, intent);
-  }
-
-  private String parsePushBundleUrl(Bundle bun) {
-    if (bun != null && bun.containsKey(PUSHARG_URL)) {
-      String url = bun.getString(PUSHARG_URL);
-      if (!Util.isNullOrEmpty(url)) {
-        return url;
-      }
-    }
-    return null;
   }
 
   @Override
@@ -616,12 +604,18 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
     LoginManager.getInstance().registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
       @Override
       public void onSuccess(LoginResult loginResult) {
+        if(m_webView != null) {
+          m_webView.bootstrap();
+        }
       }
 
       @Override
       public void onCancel() {
         LoginManager.getInstance().logOut();
         Util.toastShort(MainActivity.this, "로그인을 취소했습니다");
+        if(m_webView != null && m_webView.canGoBack()) {
+          m_webView.goBack();
+        }
       }
 
       @Override
@@ -629,6 +623,9 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
         Util.e("Facebook SignInResult: failed! %s", error.getMessage());
         LoginManager.getInstance().logOut();
         Util.toastShort(MainActivity.this, "다시 시도해 주세요");
+        if(m_webView != null && m_webView.canGoBack()) {
+          m_webView.goBack();
+        }
       }
     });
     this.mFacebookAuthClient = callbackManager;

@@ -69,7 +69,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService
 
     Intent intent = new Intent(this, MainActivity.class);
     intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-    intent.putExtra(MainActivity.PUSHARG_URL, rmsg.getData().get("url"));
+    intent.putExtra(UrlBundle.PUSHARG_URL, rmsg.getData().get("url"));
     PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_ONE_SHOT);
 
     String channelId = getString(R.string.default_notification_channel_id);

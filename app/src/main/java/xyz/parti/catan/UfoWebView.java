@@ -58,7 +58,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class UfoWebView
@@ -568,15 +567,8 @@ public class UfoWebView
     }
   }
 
-  public void onStart(Activity act, String pushNotifiedUrl) {
+  public void onStart(Activity act) {
     registerReciver(act);
-
-    String url;
-    if (pushNotifiedUrl == null) {
-      onBootstrap(getLastOnlineUrl(), null);
-    } else {
-      onBootstrapForPushNotification(pushNotifiedUrl);
-    }
   }
 
   public void onStop(Activity act)
@@ -584,13 +576,32 @@ public class UfoWebView
     act.unregisterReceiver(m_connectivityReceiver);
   }
 
-  public void onBootstrapForPushNotification(String pushNotifiedUrl) {
-    HashMap customHeader = new HashMap<String, String>();
-    customHeader.put("X-Catan-Push-Notified", "true");
-    onBootstrap(pushNotifiedUrl, customHeader);
+  public void bootstrap(UrlBundle urlBundle) {
+    String pushNotificationUrl = urlBundle.getPushNotifiedUrl();
+    String appLinkUrl = urlBundle.getAppLinkUrl();
+
+    if (pushNotificationUrl != null) {
+      m_currentUrl = pushNotificationUrl;
+      bootstrapForPushNotification(pushNotificationUrl);
+    } else if(appLinkUrl != null) {
+      m_currentUrl = appLinkUrl;
+      bootstrapForUrl(appLinkUrl, null);
+    } else {
+      bootstrapForUrl(getLastOnlineUrl(), null);
+    }
   }
 
-  private void onBootstrap(String url, Map<String, String> customHeader) {
+  public void bootstrap() {
+    bootstrapForUrl(getLastOnlineUrl(), null);
+  }
+
+  private void bootstrapForPushNotification(String pushNotifiedUrl) {
+    HashMap customHeader = new HashMap<String, String>();
+    customHeader.put("X-Catan-Push-Notified", "true");
+    bootstrapForUrl(pushNotifiedUrl, customHeader);
+  }
+
+  private void bootstrapForUrl(String url, Map<String, String> customHeader) {
     if (!Util.isNetworkOnline(m_webView.getContext())) {
       onNetworkOffline();
       return;
@@ -799,7 +810,7 @@ public class UfoWebView
         }
 
         if (TextUtils.isEmpty(m_basePageUrl)) {
-          return;
+          m_basePageUrl = UfoWebView.BASE_URL;
         }
         else if(m_basePageUrl.equals(backBrowserUrl)) {
           m_webView.goBack();
@@ -947,9 +958,5 @@ public class UfoWebView
 
   public void stopLoading() {
     m_webView.stopLoading();
-  }
-
-  public void simpleGoBack() {
-    m_webView.goBack();
   }
 }
