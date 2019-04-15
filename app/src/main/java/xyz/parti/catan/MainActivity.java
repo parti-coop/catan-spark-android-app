@@ -30,6 +30,7 @@ import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
+import com.facebook.login.LoginBehavior;
 import com.facebook.login.LoginManager;
 import com.facebook.login.LoginResult;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -628,6 +629,7 @@ public class MainActivity extends AppCompatActivity implements UfoWebView.Listen
         }
       }
     });
+    LoginManager.getInstance().setLoginBehavior(LoginBehavior.DIALOG_ONLY);
     this.mFacebookAuthClient = callbackManager;
   }
 
