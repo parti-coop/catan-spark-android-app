@@ -3,15 +3,20 @@ package xyz.parti.catan;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
+
+import java.util.List;
 
 public class Util
 {
@@ -213,10 +218,43 @@ public class Util
     return ProgressDialog.show(ctx, "", ctx.getResources().getString(resId), true, true, lsnr);
   }
 
-  public static void startWebBrowser(Context ctx, String url)
-  {
-    Intent itt = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-    ctx.startActivity(itt);
+  public static boolean startWebBrowser(Context ctx, String url) {
+    PackageManager packageManager = ctx.getPackageManager();
+    try {
+      if (url.startsWith("intent://")) {
+        Intent itt = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+        if (itt != null) {
+          ResolveInfo info = packageManager.resolveActivity(itt, PackageManager.MATCH_DEFAULT_ONLY);
+          if (info != null) {
+            ctx.startActivity(itt);
+          } else {
+            String fallbackUrl = itt.getStringExtra("browser_fallback_url");
+            if(fallbackUrl != null) {
+              startWebBrowser(ctx, fallbackUrl);
+            } else {
+              return false;
+            }
+          }
+          return true;
+        } else {
+          return false;
+        }
+      } else if (url.startsWith("market://")) {
+        Intent intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+        if (intent != null) {
+          ctx.startActivity(intent);
+          return true;
+        }
+        return false;
+      } else{
+        Intent itt = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        ctx.startActivity(itt);
+        return true;
+      }
+    } catch (Exception e) {
+      Util.e("startWebBrowser %s", url, e.getMessage());
+      return false;
+    }
   }
 
   public static boolean isNetworkOnline(Context context)

@@ -153,9 +153,11 @@ public class UfoWebView
         @Override
         public void onPageStarted(WebView view, String url,
                       Bitmap favicon) {
-          handleLinksOnCreateWindow(context, url); // you can get your target url here
-          dummyWebView.stopLoading();
-          dummyWebView.destroy();
+          if(view.getContext() != null) {
+            handleLinksOnCreateWindow(view.getContext(), url); // you can get your target url here
+            dummyWebView.stopLoading();
+            dummyWebView.destroy();
+          }
         }
       });
       WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
@@ -170,7 +172,10 @@ public class UfoWebView
       if (Pattern.compile(BuildConfig.API_BASE_URL_REGX).matcher(url).lookingAt()) {
         loadRemoteUrl(url);
       } else {
-        Util.startWebBrowser(context, url);
+        if(! Util.startWebBrowser(context, url)) {
+          if(m_activity == null) { return; }
+          Util.toastShort(m_activity, "링크를 열 수 없습니다");
+        }
       }
     }
 
@@ -217,7 +222,7 @@ public class UfoWebView
             photoFile = createImageFile();
           } catch (IOException ex) {
             // Error occurred while creating the File
-            Util.e(getClass().getName(), "사진 파일을 저장할 수 없습니다", ex);
+            Util.e(getClass().getName(), "사진 파일을 저장할 수 없습니다", ex.getMessage());
           }
           // Continue only if the File was successfully created
           if (photoFile != null) {
@@ -737,7 +742,10 @@ public class UfoWebView
     else if ("fork".equalsIgnoreCase(action))
     {
       Util.d("fork: %s", param);
-      Util.startWebBrowser(MainActivity.getInstance(), param);
+      if(! Util.startWebBrowser(MainActivity.getInstance(), param)) {
+        if(m_activity == null) { return; }
+        Util.toastShort(m_activity, "링크를 열 수 없습니다");
+      }
     }
     else if ("eval".equalsIgnoreCase(action))
     {
@@ -790,7 +798,10 @@ public class UfoWebView
       url = url.substring(9);
 
     Util.d("forkPage: %s", url);
-    Util.startWebBrowser(MainActivity.getInstance(), url);
+    if(! Util.startWebBrowser(MainActivity.getInstance(), url)) {
+      if(m_activity == null) { return; }
+      Util.toastShort(m_activity, "링크를 열 수 없습니다");
+    }
   }
 
   @JavascriptInterface

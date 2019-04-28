@@ -20,5 +20,7 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
--keepattributes EnclosingMethod
+-keepattributes *Annotation*,EnclosingMethod
 -keepattributes InnerClasses
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
