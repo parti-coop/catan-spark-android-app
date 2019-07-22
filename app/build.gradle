@@ -8,8 +8,8 @@ android {
         applicationId "xyz.parti.catan"
         minSdkVersion 15
         targetSdkVersion 27
-        versionCode 23
-        versionName "1.0.11"
+        versionCode 25
+        versionName "1.0.13"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
 
