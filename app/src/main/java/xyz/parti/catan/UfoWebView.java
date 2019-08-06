@@ -41,7 +41,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
 import com.karumi.dexter.Dexter;
-import com.karumi.dexter.listener.single.DialogOnDeniedPermissionListener;
+import com.karumi.dexter.listener.multi.DialogOnAnyDeniedMultiplePermissionsListener;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -189,12 +189,15 @@ public class UfoWebView
         return showMultiFileChooser(filePathCallback);
       } else {
         Dexter.withActivity(m_activity)
-                .withPermission(android.Manifest.permission.CAMERA)
+                .withPermissions(
+                        android.Manifest.permission.CAMERA,
+                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+                        )
                 .withListener(
-                        DialogOnDeniedPermissionListener.Builder
+                        DialogOnAnyDeniedMultiplePermissionsListener.Builder
                                 .withContext(m_activity)
-                                .withTitle("카메라 권한")
-                                .withMessage("카메라로 사진 찍을 권한이 필요합니다")
+                                .withTitle("카메라와 외부 저장소 접근 권한")
+                                .withMessage("카메라로 사진 찍을 권한과 외부 저장소에 접근할 권한이 필요합니다")
                                 .withButtonText(android.R.string.ok)
                                 .withIcon(R.mipmap.ic_launcher)
                                 .build()).check();
@@ -551,6 +554,14 @@ public class UfoWebView
     webSettings.setJavaScriptEnabled(true);
     webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
     webSettings.setSupportMultipleWindows(true);
+    webSettings.setDomStorageEnabled(true);
+    webSettings.setDatabaseEnabled(true);
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+      webSettings.setDatabasePath("/data/data/" + m_webView.getContext().getPackageName() + "/databases/");
+    }
+    webSettings.setAllowFileAccess(true);
+    webSettings.setAllowFileAccessFromFileURLs(true);
+    webSettings.setAllowUniversalAccessFromFileURLs(true);
     String userAgent = webSettings.getUserAgentString();
     m_defaultUserAgent = userAgent + CATAN_USER_AGENT;
     webSettings.setUserAgentString(m_defaultUserAgent);
