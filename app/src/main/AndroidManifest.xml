@@ -71,7 +71,7 @@
             android:value="${crashlyticsApiKey}" />
 
         <provider
-            android:name="android.support.v4.content.FileProvider"
+            android:name="androidx.core.content.FileProvider"
             android:authorities="xyz.parti.catan.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
